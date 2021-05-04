@@ -38,7 +38,7 @@ setup(
         'pandas',
         'cx_Oracle'
     ],
-    package_data={'wpconnect': ['README.rst']},
+    package_data={'wpconnect': ['*.dll', '*.sql']},
     include_package_data=True,
     zip_safe=False
 )
