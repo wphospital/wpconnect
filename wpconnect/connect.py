@@ -76,7 +76,9 @@ class Connect:
                 try:
                     cx_Oracle.init_oracle_client(lib_dir=dll_dir)
                 except cx_Oracle.ProgrammingError as err:
-                    if 'already been initialized' in err.message:
+                    error, = err.args
+
+                    if 'already been initialized' in error.message:
                         pass
                     else:
                         raise err
