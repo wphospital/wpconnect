@@ -38,7 +38,7 @@ setup(
         'pandas',
         'cx_Oracle'
     ],
-    package_data={'wpconnect': ['*.dll', 'queries/*.sql']},
+    package_data={'wpconnect': ['oracle_dlls/*.dll', 'queries/*.sql']},
     include_package_data=True,
     zip_safe=False
 )
