@@ -38,7 +38,7 @@ setup(
         'pandas',
         'cx_Oracle'
     ],
-    package_data={'wpconnect': ['instantclient_19_10/*.dll', '*.sql']},
+    package_data={'wpconnect': ['*.dll', 'queries/*.sql']},
     include_package_data=True,
     zip_safe=False
 )
