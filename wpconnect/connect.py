@@ -13,7 +13,7 @@ class Connect:
         connection_type=None,
         server=settings.WPH_SERVER,
         database=settings.WPH_DATABASE,
-        port=settings.WPH_PORT,
+        port=None,
         username=None,
         password=None,
     ):
@@ -21,7 +21,13 @@ class Connect:
         if connection_type is None:
             self.server = server
             self.database = database
-            self.port = port
+
+            if port:
+                self.port = port
+            elif self.server == settings.EDW_SERVER:
+                self.port = settings.EDW_PORT
+            elif self.server == settings.WPH_SERVER:
+                self.port = settings.WPH_PORT
         elif connection_type == 'wph_dw':
             self.server = settings.WPH_SERVER
             self.database = settings.WPH_DATABASE
