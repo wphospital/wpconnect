@@ -38,6 +38,7 @@ setup(
         'pandas',
         'cx_Oracle'
     ],
+    package_data={'': ['README.rst']},
     include_package_data=True,
     zip_safe=False
 )
