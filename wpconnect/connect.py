@@ -28,6 +28,8 @@ class Connect:
                 self.port = settings.EDW_PORT
             elif self.server == settings.WPH_SERVER:
                 self.port = settings.WPH_PORT
+
+            print self.port
         elif connection_type == 'wph_dw':
             self.server = settings.WPH_SERVER
             self.database = settings.WPH_DATABASE
