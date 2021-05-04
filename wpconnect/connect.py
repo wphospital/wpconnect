@@ -7,6 +7,8 @@ import os
 
 import pkgutil
 
+pkgutil.extend_path(__path__, __name__)
+
 settings = Settings()
 
 class Connect:
@@ -36,8 +38,6 @@ class Connect:
         # Authentication
         self.username = username
         self.password = password
-
-        print(os.getcwd())
 
         # Create the connection
         self.conn = self.create_connection()
