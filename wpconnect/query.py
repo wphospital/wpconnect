@@ -113,3 +113,13 @@ class Query:
         return_type: str = settings.DEFAULT_RETURN,
     ):
         return self.execute_imported('list_columns.sql')
+
+    def to_sql(
+        self,
+        df,
+        **kwargs
+    ):
+        df.to_sql(
+            con=self.conn,
+            **kwargs
+        )
