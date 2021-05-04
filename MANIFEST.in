@@ -1,2 +1,2 @@
-include wpconnect/queries/*
-include wpconnect/instantclient_19_10/*.dll
+include queries/*
+include instantclient_19_10/*.dll
