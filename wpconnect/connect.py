@@ -4,6 +4,7 @@ import cx_Oracle
 import yaml
 from .settings import Settings
 import os
+import platform
 
 settings = Settings()
 
@@ -79,15 +80,16 @@ class Connect:
 
                 dll_dir = os.path.join(os.path.dirname(__file__), 'oracle_dlls')
 
-                try:
-                    cx_Oracle.init_oracle_client(lib_dir=dll_dir)
-                except cx_Oracle.ProgrammingError as err:
-                    error, = err.args
+                if platform.system() == 'Windows':
+                    try:
+                        cx_Oracle.init_oracle_client(lib_dir=dll_dir)
+                    except cx_Oracle.ProgrammingError as err:
+                        error, = err.args
 
-                    if 'already been initialized' in error.message:
-                        pass
-                    else:
-                        raise err
+                        if 'already been initialized' in error.message:
+                            pass
+                        else:
+                            raise err
 
                 engine = sa.create_engine(self.connection_string)
                 connection = engine.connect()
