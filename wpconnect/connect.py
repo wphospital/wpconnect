@@ -29,7 +29,7 @@ class Connect:
             elif self.server == settings.WPH_SERVER:
                 self.port = settings.WPH_PORT
 
-            print self.port
+            print(self.port)
         elif connection_type == 'wph_dw':
             self.server = settings.WPH_SERVER
             self.database = settings.WPH_DATABASE
