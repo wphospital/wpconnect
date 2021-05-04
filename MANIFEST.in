@@ -1,2 +1,3 @@
+include README.rst
 include queries/*
 include instantclient_19_10/*.dll
