@@ -13,15 +13,15 @@ from setuptools import setup
 #     include_package_data=True,
 # )
 
-def readme():
-    with open('README.rst') as f:
-        return f.read()
+# def readme():
+#     with open('README.rst') as f:
+#         return f.read()
 
 setup(
     name='wpconnect',
     version='0.1',
     description='Internal package for convenience functions in data warehouse',
-    long_description=readme(),
+    # long_description=readme(),
     classifiers=[
         'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: MIT License',
