@@ -15,7 +15,7 @@ class Query:
         connection_type=None,
         server=settings.WPH_SERVER,
         database=settings.WPH_DATABASE,
-        port=settings.WPH_PORT,
+        port=None,
         username=None,
         password=None,
     ):

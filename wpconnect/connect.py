@@ -22,19 +22,12 @@ class Connect:
             self.server = server
             self.database = database
 
-            print(self.server)
-            print(settings.EDW_SERVER)
-
-            print(self.server == settings.EDW_SERVER)
-
             if port:
                 self.port = port
             elif self.server == settings.EDW_SERVER:
                 self.port = settings.EDW_PORT
             elif self.server == settings.WPH_SERVER:
                 self.port = settings.WPH_PORT
-
-            print(self.port)
         elif connection_type == 'wph_dw':
             self.server = settings.WPH_SERVER
             self.database = settings.WPH_DATABASE
