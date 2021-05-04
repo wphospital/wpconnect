@@ -5,6 +5,8 @@ import yaml
 from .settings import Settings
 import os
 
+import pkgutil
+
 settings = Settings()
 
 class Connect:

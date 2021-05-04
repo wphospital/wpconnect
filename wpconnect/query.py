@@ -5,6 +5,8 @@ from .connect import Connect
 from .settings import Settings
 import warnings
 
+import pkgutil
+
 settings = Settings()
 
 class Query:
@@ -39,12 +41,14 @@ class Query:
         self,
         filename,
     ):
-        query = None
+        # First try to import from package data
+        query = pkgutil.get_data(__name__, os.path.join('queries', filename))
 
-        for l in self.query_libs:
-            if filename in os.listdir(l):
-                with open(os.path.join(l, filename)) as file:
-                    query = file.read()
+        if query is None:
+            for l in self.query_libs:
+                if filename in os.listdir(l):
+                    with open(os.path.join(l, filename)) as file:
+                        query = file.read()
 
         return query
 
