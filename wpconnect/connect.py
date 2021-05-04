@@ -22,6 +22,8 @@ class Connect:
             self.server = server
             self.database = database
 
+            print(self.server)
+
             if port:
                 self.port = port
             elif self.server == settings.EDW_SERVER:
