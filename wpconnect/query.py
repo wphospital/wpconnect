@@ -44,7 +44,10 @@ class Query:
         filename,
     ):
         # First try to import from package data
-        query = pkgutil.get_data(__name__, os.path.join('queries', filename)).decode('ascii')
+        try:
+            query = pkgutil.get_data(__name__, os.path.join('queries', filename)).decode('ascii')
+        except FileNotFoundError:
+            query = None
 
         if query is None:
             for l in self.query_libs:
