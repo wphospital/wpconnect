@@ -35,7 +35,9 @@ class Query:
     ):
         query_libs = [query_libs] if type(query_libs) != list else query_libs
 
-        self.query_libs = self.query_libs + query_libs
+        for l in query_libs:
+            if l not in self.query_libs:
+                self.query_libs.append(l)
 
     def import_sql(
         self,
