@@ -52,6 +52,7 @@ class Query:
 
         return query
 
+    # TODO: PARAMS WILL NOT WORK WITH SQLALCHEMY/ORACLE
     def execute_query(
         self,
         query: str,
@@ -76,6 +77,9 @@ class Query:
                 except pd.io.sql.DatabaseError as err:
                     warnings.warn(str(err), UserWarning)
                     return
+                except AttributeError as err:
+                    qr = self.conn.execute(query, params=params)
+                    res = qr.fetchall()
 
             self.most_recent_query = query
             self.most_recent_params = params
