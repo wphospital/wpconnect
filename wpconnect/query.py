@@ -83,7 +83,7 @@ class Query:
                     warnings.warn(str(err), UserWarning)
                     return
                 except AttributeError as err:
-                    qr = self.conn.execute(query, params=params)
+                    qr = self.conn.execute(query)
                     res = qr.fetchall()
 
             self.most_recent_query = query
