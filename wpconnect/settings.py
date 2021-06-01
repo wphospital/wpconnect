@@ -7,7 +7,8 @@ class Settings:
 
     # MIT EDW configs
     EDW_SERVER = 'od01-scan.montefiore.org'
-    EDW_DATABASE = 'EDWDEV.montefiore.org'
+    EDW_DATABASE_DEV = 'EDWDEV.montefiore.org'
+    EDW_DATABASE_PROD = 'EDWADG.montefiore.org'
     EDW_PORT = 3923
 
     # IO configs
