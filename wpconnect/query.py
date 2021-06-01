@@ -13,13 +13,14 @@ class Query:
     def __init__(
         self,
         connection_type=None,
+        environ=None,
         server=settings.WPH_SERVER,
         database=settings.WPH_DATABASE,
         port=None,
         username=None,
         password=None,
     ):
-        self.connection = Connect(connection_type, server, database, port, username, password)
+        self.connection = Connect(connection_type, environ, server, database, port, username, password)
         self.conn = self.connection.conn
         self.query_libs = ['.']
 
