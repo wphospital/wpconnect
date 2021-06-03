@@ -5,6 +5,7 @@ import yaml
 from .settings import Settings
 import os
 import platform
+from urllib.parse import quote_plus
 
 settings = Settings()
 
@@ -57,6 +58,8 @@ class Connect:
         self.conn.close()
 
     def set_connection_string(self):
+        safe_password = quote_plus(self.password)
+
         if self.server == settings.WPH_SERVER:
             driver = '{ODBC Driver 17 for SQL Server}'
 
@@ -77,8 +80,6 @@ class Connect:
 
     def create_connection(self):
         self.set_connection_string()
-
-        print(self.connection_string)
 
         try:
             if self.server == settings.WPH_SERVER:
