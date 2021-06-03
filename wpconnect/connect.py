@@ -73,7 +73,7 @@ class Connect:
         elif self.server == settings.EDW_SERVER:
             self.connection_string = (
                 f'oracle+cx_oracle:'
-                f'//{self.username}:{self.password}'
+                f'//{self.username}:{safe_password}'
                 f'@{self.server}:{self.port}/'
                 f'?service_name={self.database}'
             )
