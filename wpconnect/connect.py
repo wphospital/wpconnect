@@ -37,7 +37,7 @@ class Connect:
         elif connection_type == 'mit_edw':
             self.server = settings.EDW_SERVER
             self.port = settings.EDW_PORT
-            
+
             if environ == 'dev' or environ is None:
                 self.database = settings.EDW_DATABASE_DEV
             else:
@@ -77,6 +77,8 @@ class Connect:
 
     def create_connection(self):
         self.set_connection_string()
+
+        print(self.connection_string)
 
         try:
             if self.server == settings.WPH_SERVER:
