@@ -72,11 +72,12 @@ class Query:
 
             if return_type is None:
                 try:
-                    qr = self.conn.execute(query, params=params)
-                    return
+                    qr = self.conn.execute(query)
                 except pd.io.sql.DatabaseError as err:
                     warnings.warn(str(err), UserWarning)
                     return
+
+                return
             elif return_type == 'DataFrame':
                 try:
                     res = pd.read_sql(query, self.conn, params=params)
