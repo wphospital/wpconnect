@@ -85,7 +85,12 @@ class Query:
                     warnings.warn(str(err), UserWarning)
                     return
                 except ResourceClosedError as err:
-                    if 'does not return rows' in err:
+                    if 'does not return rows' in str(err):
+                        warnings.warn('The query does not return rows. If this is expected by design, please call execute_query(..., return_type=None)', UserWarning)
+                    else:
+                        warnings.warn(str(err), UserWarning)
+                except AttributeError as err:
+                    if 'NoneType' in str(err):
                         warnings.warn('The query does not return rows. If this is expected by design, please call execute_query(..., return_type=None)', UserWarning)
                     else:
                         warnings.warn(str(err), UserWarning)
