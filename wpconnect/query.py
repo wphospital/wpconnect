@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 from pyodbc import Error, ProgrammingError, DatabaseError
+from sqlalchemy.exc import ResourceClosedError
 from .connect import Connect
 from .settings import Settings
 import warnings
@@ -83,6 +84,11 @@ class Query:
                 except pd.io.sql.DatabaseError as err:
                     warnings.warn(str(err), UserWarning)
                     return
+                except ResourceClosedError as err:
+                    if 'does not return rows' in err:
+                        warnings.warn('The query does not return rows. If this is expected by design, please call execute_query(..., return_type=None)', UserWarning)
+                    else:
+                        warnings.warn(str(err), UserWarning)
             else:
                 try:
                     with self.conn.cursor() as cursor:
