@@ -73,6 +73,8 @@ class Query:
             if return_type is None:
                 try:
                     qr = self.conn.execute(query)
+                    # TODO: check if ddl. if not allow params
+                    # TODO: check if conn is from sqlalchemy. if not, use self.conn.cursor()
                 except pd.io.sql.DatabaseError as err:
                     warnings.warn(str(err), UserWarning)
                     return
