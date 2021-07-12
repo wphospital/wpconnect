@@ -71,7 +71,8 @@ class Query:
 
             if return_type is None:
                 try:
-                    qr = cursor.execute(query, params=params)
+                    with self.conn.cursor() as cursor:
+                        qr = cursor.execute(query, params=params)
                     return
                 except pd.io.sql.DatabaseError as err:
                     warnings.warn(str(err), UserWarning)
