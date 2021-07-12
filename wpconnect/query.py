@@ -69,7 +69,14 @@ class Query:
             if params:
                 params = [params] if type(params) != list else params
 
-            if return_type == 'DataFrame':
+            if return_type is None:
+                try:
+                    qr = cursor.execute(query, params=params)
+                    return
+                except pd.io.sql.DatabaseError as err:
+                    warnings.warn(str(err), UserWarning)
+                    return
+            elif return_type == 'DataFrame':
                 try:
                     res = pd.read_sql(query, self.conn, params=params)
                 except pd.io.sql.DatabaseError as err:
