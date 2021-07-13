@@ -88,16 +88,16 @@ class Query:
                     return
                 except ResourceClosedError as err:
                     if 'does not return rows' in str(err):
-                        warnings.warn('The query did not return any rows. If this is expected by design, please call execute_query(..., return_type=None)', UserWarning)
+                        raise ValueError('The query did not return any rows. If this is expected by design, please call execute_query(..., return_type=None)')
                         return
                     else:
-                        warnings.warn(str(err), UserWarning)
+                        raise err
                 except AttributeError as err:
                     if 'NoneType' in str(err):
-                        warnings.warn('The query did not return any rows. If this is expected by design, please call execute_query(..., return_type=None)', UserWarning)
+                        raise ValueError('The query did not return any rows. If this is expected by design, please call execute_query(..., return_type=None)')
                         return
                     else:
-                        warnings.warn(str(err), UserWarning)
+                        raise err
             else:
                 try:
                     with self.conn.cursor() as cursor:
