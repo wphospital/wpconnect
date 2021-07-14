@@ -23,7 +23,8 @@ setup(
         'markdown',
         'pyodbc',
         'pandas',
-        'cx_Oracle'
+        'cx_Oracle',
+        'sqlalchemy'
     ],
     package_data={'wpconnect': ['oracle_dlls/*.dll', 'queries/*.sql']},
     include_package_data=True,
