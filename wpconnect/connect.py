@@ -1,7 +1,6 @@
 import pyodbc
 import sqlalchemy as sa
 import cx_Oracle
-import yaml
 from .settings import Settings
 import os
 import platform
