@@ -96,9 +96,7 @@ class Connect:
         self.set_connection_string()
 
         try:
-            if self.server == settings.WPH_SERVER:
-                connection = pyodbc.connect(self.connection_string)
-            elif self.server == settings.EDW_SERVER:
+            if self.server == settings.EDW_SERVER:
 
                 dll_dir = os.path.join(os.path.dirname(__file__), 'oracle_dlls')
 
@@ -115,6 +113,8 @@ class Connect:
 
                 engine = sa.create_engine(self.connection_string)
                 connection = engine.connect()
+            else:
+                connection = pyodbc.connect(self.connection_string)
         except pyodbc.Error as err:
             print(f'Could not connect!: {err}')
         except Exception as err:
