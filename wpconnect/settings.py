@@ -5,6 +5,11 @@ class Settings:
     WPH_SCHEMA = 'dbo'
     WPH_PORT = 1433
 
+    # Teletracking database configs
+    TT_SERVER = 'SHNPTCWTLDPVM01\SQL2016PROD'
+    TT_DATABASE = 'dNa'
+    TT_PORT = 1433
+
     # MIT EDW configs
     EDW_SERVER = 'od01-scan.montefiore.org'
     EDW_DATABASE_DEV = 'EDWDEV.montefiore.org'

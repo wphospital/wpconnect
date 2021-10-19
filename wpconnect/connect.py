@@ -18,7 +18,10 @@ class Connect:
         port=None,
         username=None,
         password=None,
+        trusted_connection=True,
     ):
+        self.trusted_connection = trusted_connection
+
         # Connection
         if connection_type is None:
             self.server = server
@@ -30,10 +33,16 @@ class Connect:
                 self.port = settings.EDW_PORT
             elif self.server == settings.WPH_SERVER:
                 self.port = settings.WPH_PORT
+            else:
+                self.port = 1433
         elif connection_type == 'wph_dw':
             self.server = settings.WPH_SERVER
             self.database = settings.WPH_DATABASE
             self.port = settings.WPH_PORT
+        elif connection_type == 'wph_tt':
+            self.server = settings.TT_SERVER
+            self.database = settings.TT_DATABASE
+            self.port = settings.TT_PORT
         elif connection_type == 'mit_edw':
             self.server = settings.EDW_SERVER
             self.port = settings.EDW_PORT
@@ -57,24 +66,30 @@ class Connect:
         self.conn.close()
 
     def set_connection_string(self):
-        safe_password = quote_plus(self.password)
+        if self.password:
+            safe_password = quote_plus(self.password)
 
-        if self.server == settings.WPH_SERVER:
-            driver = '{ODBC Driver 17 for SQL Server}'
-
-            self.connection_string = (
-                f'Driver={driver};'
-                f'Server={self.server};'
-                f'Database={self.database};'
-                f'Trusted_Connection=yes;'
-                'MARS_Connection=yes;'
-            )
-        elif self.server == settings.EDW_SERVER:
+        if self.server == settings.EDW_SERVER:
             self.connection_string = (
                 f'oracle+cx_oracle:'
                 f'//{self.username}:{safe_password}'
                 f'@{self.server}:{self.port}/'
                 f'?service_name={self.database}'
+            )
+        else:
+            driver = '{ODBC Driver 17 for SQL Server}'
+
+            if self.trusted_connection:
+                auth_str = 'Trusted_Connection=yes;'
+            else:
+                auth_str = f'UID={self.username};PWD={safe_password};'
+
+            self.connection_string = (
+                f'Driver={driver};'
+                f'Server={self.server};'
+                f'Database={self.database};'
+                f'{auth_str}'
+                'MARS_Connection=yes;'
             )
 
     def create_connection(self):
