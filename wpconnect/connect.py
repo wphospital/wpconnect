@@ -73,7 +73,7 @@ class Connect:
         if self.password:
             safe_password = quote_plus(self.password)
 
-        if self.server == settings.EDW_SERVER:
+        if self.server in [settings.EDW_SERVER, settings.EDW_SERVER_PROD]:
             self.connection_string = (
                 f'oracle+cx_oracle:'
                 f'//{self.username}:{safe_password}'
@@ -100,7 +100,7 @@ class Connect:
         self.set_connection_string()
 
         try:
-            if self.server == settings.EDW_SERVER:
+            if self.server in [settings.EDW_SERVER, settings.EDW_SERVER_PROD]:
 
                 dll_dir = os.path.join(os.path.dirname(__file__), 'oracle_dlls')
 
