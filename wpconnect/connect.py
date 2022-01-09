@@ -49,7 +49,7 @@ class Connect:
             if environ == 'dev':
                 self.server = settings.EDW_SERVER
                 self.database = settings.EDW_DATABASE_DEV
-            if environ == 'qa':
+            elif environ == 'qa':
                 self.server = settings.EDW_SERVER
                 self.database = settings.EDW_DATABASE_QA
             else:
