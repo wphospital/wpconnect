@@ -12,7 +12,7 @@ class Connect:
     def __init__(
         self,
         connection_type=None,
-        environ=None,
+        environ='dev',
         server=settings.WPH_SERVER,
         database=settings.WPH_DATABASE,
         port=None,
@@ -44,12 +44,16 @@ class Connect:
             self.database = settings.TT_DATABASE
             self.port = settings.TT_PORT
         elif connection_type == 'mit_edw':
-            self.server = settings.EDW_SERVER
             self.port = settings.EDW_PORT
 
-            if environ == 'dev' or environ is None:
+            if environ == 'dev':
+                self.server = settings.EDW_SERVER
                 self.database = settings.EDW_DATABASE_DEV
+            if environ == 'qa':
+                self.server = settings.EDW_SERVER
+                self.database = settings.EDW_DATABASE_QA
             else:
+                self.server = settings.EDW_SERVER_PROD
                 self.database = settings.EDW_DATABASE_PROD
 
         # Authentication
