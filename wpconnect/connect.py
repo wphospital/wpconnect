@@ -29,7 +29,7 @@ class Connect:
 
             if port:
                 self.port = port
-            elif self.server == settings.EDW_SERVER:
+            elif self.server in [settings.EDW_SERVER, settings.EDW_SERVER_PROD]:
                 self.port = settings.EDW_PORT
             elif self.server == settings.WPH_SERVER:
                 self.port = settings.WPH_PORT
