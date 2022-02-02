@@ -6,7 +6,11 @@ from .connect import Connect
 from .settings import Settings
 import warnings
 
+from github import Github
+import re
+import requests
 import pkgutil
+
 
 settings = Settings()
 
