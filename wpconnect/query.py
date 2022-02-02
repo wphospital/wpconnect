@@ -136,7 +136,7 @@ class Query:
         if res.status_code != 200:
             res.raise_for_status()
 
-        query = res.text
+        return res.text
 
     def import_sql(
         self,
