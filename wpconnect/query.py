@@ -26,7 +26,9 @@ class Query:
         self.conn = self.connection.conn
         self.query_libs = ['.']
 
-        if repo:
+        self.repo_config = repo is not None
+
+        if self.repo_config:
             self.repo = repo
 
             self.configure_repo()
@@ -118,7 +120,6 @@ class Query:
                     cfs[name] = q.download_url
 
         self.cfs = cfs
-        self.repo_config = True
 
     def _get_repo_query(
         self,
