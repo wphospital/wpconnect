@@ -35,6 +35,8 @@ class Query:
         if self.repo_config:
             self.repo = repo
 
+            self.repo_duplicates = []
+
             self.configure_repo()
 
     def __enter__(self):
@@ -121,7 +123,15 @@ class Query:
 
                     name = q.name
 
+                    if name in cfs.keys():
+                        self.repo_duplicates.append(name)
+
                     cfs[name] = q.download_url
+
+        if len(self.repo_duplicates) > 0:
+            joined_dups = ', '.join(self.repo_duplicates)
+
+            warnings.warn(f'Duplicated queries found: {joined_dups}')
 
         self.cfs = cfs
 
