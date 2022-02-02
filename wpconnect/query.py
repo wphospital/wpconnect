@@ -77,7 +77,7 @@ class Query:
         if len(missing_keys) > 0:
             raise UserError(f'Missing keys in query argument: {joined_missing}')
 
-        repo_name = '%s/%s' % (repo['username'], repo['repo'])
+        repo_name = '%s/%s' % (self.repo['username'], self.repo['repo'])
 
         g = Github(self.repo['access_token'])
 
