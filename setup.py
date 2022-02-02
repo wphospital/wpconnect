@@ -6,7 +6,7 @@ def readme():
 
 setup(
     name='wpconnect',
-    version='0.2',
+    version='0.3',
     description='Internal package for convenience functions in data warehouse',
     long_description=readme(),
     classifiers=[
@@ -24,7 +24,8 @@ setup(
         'pyodbc',
         'pandas',
         'cx_Oracle',
-        'sqlalchemy'
+        'sqlalchemy',
+        'PyGithub'
     ],
     package_data={'wpconnect': ['oracle_dlls/*.dll', 'queries/*.sql']},
     include_package_data=True,

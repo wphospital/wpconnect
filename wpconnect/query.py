@@ -20,10 +20,16 @@ class Query:
         port=None,
         username=None,
         password=None,
+        repo=None
     ):
         self.connection = Connect(connection_type, environ, server, database, port, username, password)
         self.conn = self.connection.conn
         self.query_libs = ['.']
+
+        if repo:
+            self.repo = repo
+
+            self.configure_repo()
 
     def __enter__(self):
         return self
@@ -41,21 +47,110 @@ class Query:
             if l not in self.query_libs:
                 self.query_libs.append(l)
 
+    def _get_dirs_at_level(
+        self,
+        r,
+        d
+    ):
+        level_dirs = []
+
+        # Identify directories at this level
+        for cf in r.get_contents(d):
+            path = cf.path
+
+            if cf.type == 'dir':
+                level_dirs.append(cf.path)
+
+        return level_dirs
+
+    def configure_repo(
+        self
+    ):
+        needed_keys = ['access_token', 'username', 'repo']
+
+        missing_keys = [k for k in needed_keys if k not in self.repo.keys()]
+
+        joined_missing = ', '.join(missing_keys)
+
+        if len(missing_keys) > 0:
+            raise UserError(f'Missing keys in query argument: {joined_missing}')
+
+        repo_name = '%s/%s' % (repo['username'], repo['repo'])
+
+        g = Github(self.repo['access_token'])
+
+        r = g.get_repo(repo_name)
+
+        # Get all directories in the repo
+        dirs = ['.']
+        scanned_dirs = []
+
+        needs_scanning = [d for d in dirs if d not in scanned_dirs]
+
+        while len(needs_scanning) > 0:
+            for d in dirs:
+                level_dirs = self._get_dirs_at_level(r, d)
+
+                dirs += level_dirs
+
+                scanned_dirs.append(d)
+
+                needs_scanning = [d for d in dirs if d not in scanned_dirs]
+
+        # Look through the repo dirs for sql queries
+        cfs = {}
+
+        for d in dirs:
+            dir_contents = r.get_contents(d)
+
+            for q in dir_contents:
+                if '.sql' in q.path:
+                    # TODO: evaluate if we can use basename instead of full
+                    # base_name = re.search(re.compile('.+(?=\.)'), q.name)
+                    #
+                    # if base_name:
+                    #     name = base_name.group(0)
+                    # else:
+                    #     name = q.name
+
+                    name = q.name
+
+                    cfs[name] = q.download_url
+
+        self.cfs = cfs
+        self.repo_config = True
+
+    def _get_repo_query(
+        self,
+        filename
+    ):
+        headers = {'Authorization': 'token %s' % self.repo['access_token']}
+
+        res = requests.get(self.cfs[filename], headers=headers)
+
+        if res.status_code != 200:
+            res.raise_for_status()
+
+        query = res.text
+
     def import_sql(
         self,
         filename,
     ):
-        # First try to import from package data
-        try:
-            query = pkgutil.get_data(__name__, os.path.join('queries', filename)).decode('ascii')
-        except FileNotFoundError:
-            query = None
+        if self.repo_config:
+            query = self._get_repo_query(filename)
+        else:
+            # First try to import from package data
+            try:
+                query = pkgutil.get_data(__name__, os.path.join('queries', filename)).decode('ascii')
+            except FileNotFoundError:
+                query = None
 
-        if query is None:
-            for l in self.query_libs:
-                if filename in os.listdir(l):
-                    with open(os.path.join(l, filename)) as file:
-                        query = file.read()
+            if query is None:
+                for l in self.query_libs:
+                    if filename in os.listdir(l):
+                        with open(os.path.join(l, filename)) as file:
+                            query = file.read()
 
         return query
 
