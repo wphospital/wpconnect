@@ -25,7 +25,7 @@ def _get_date_str():
 today = _get_date_str()
 
 class RPMDB:
-    query_dir = cfg['query_dir']
+    query_dir = os.path.join(os.path.dirname(__file__), cfg['query_dir'])
 
     queries = [f for f in os.listdir(query_dir) if '.sql' in f]
 
