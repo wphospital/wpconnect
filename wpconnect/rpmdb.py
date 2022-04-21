@@ -12,7 +12,7 @@ import plotly.graph_objects as go
 
 from scipy.interpolate import UnivariateSpline
 
-with open('cfg.yml', 'rb') as file:
+with open('rpm-cfg.yml', 'rb') as file:
     cfg = yaml.load(file, Loader=yaml.FullLoader)
 
 # Get today's date
