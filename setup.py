@@ -25,7 +25,11 @@ setup(
         'pandas',
         'cx_Oracle',
         'sqlalchemy',
-        'PyGithub'
+        'PyGithub',
+        'psycopg2',
+        'pyyaml',
+        'plotly',
+        'scipy'
     ],
     package_data={'wpconnect': ['oracle_dlls/*.dll', 'queries/*.sql']},
     include_package_data=True,
