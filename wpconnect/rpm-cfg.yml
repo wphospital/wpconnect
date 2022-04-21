@@ -1,0 +1,13 @@
+conn_str: host={host} port={port} dbname=life365 user={user} password={password}
+
+query_dir: rpm-queries
+
+data_dir: data
+
+date_cols:
+    - enroll_date
+    - start_period
+    - end_period
+    - measure_day_et
+    - measured_at
+    - updated_at
