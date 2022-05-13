@@ -23,7 +23,9 @@ with meas AS (
   from rpm.measure_details md
   inner join rpm.measures m on m.id = md.measure_id
   left join rpm.members mem on mem.id = md.member_id
-  left join rpm.billing_tally bt on bt.member_id =  mem.id
+  left join (
+		select distinct member_id, enroll_epoch from rpm.billing_tally
+	) bt on bt.member_id = mem.id
   where mem.last_name not like '%%test%%'
   order by md.member_id, md.measure, m.measured_at
 )

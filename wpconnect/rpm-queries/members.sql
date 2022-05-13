@@ -6,5 +6,7 @@ select distinct
 	, to_timestamp(bt.enroll_epoch)::date as enroll_date
 	, date_trunc('month', to_timestamp(bt.enroll_epoch)::date) as enroll_month
 from rpm.members mem
-inner join rpm.billing_tally bt on bt.member_id = mem.id
+inner join (
+		select distinct member_id, enroll_epoch from rpm.billing_tally
+	) bt on bt.member_id = mem.id
 where mem.last_name not like '%%test%%'
