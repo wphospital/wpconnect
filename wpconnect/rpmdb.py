@@ -85,28 +85,32 @@ class RPMDB:
         with open(os.path.join(self.query_dir, q + '.sql'), 'rb') as file:
             return file.read()
 
-    def get_billing_data(self):
-        self.refresh()
+    def get_billing_data(self, refresh=True):
+        if refresh:
+            self.refresh()
 
         return self.billing
 
-    def get_usage_data(self):
-        self.refresh()
+    def get_usage_data(self, refresh=True):
+        if refresh:
+            self.refresh()
 
         return self.usage
 
-    def get_meas_data(self):
-        self.refresh()
+    def get_meas_data(self, refresh=True):
+        if refresh:
+            self.refresh()
 
         return self.measures
 
-    def get_members(self):
-        self.refresh()
+    def get_members(self, refresh=True):
+        if refresh:
+            self.refresh()
 
         return self.members
 
-    def get_billing_data_clean(self):
-        bd = self.get_billing_data()
+    def get_billing_data_clean(self, refresh=True):
+        bd = self.get_billing_data(refresh=refresh)
 
         bd['mrn'] = np.where(
             bd.extern_id.str.contains('^\d+$', regex=True),
@@ -135,8 +139,8 @@ class RPMDB:
 
         return bd
 
-    def get_usage_data_clean(self):
-        ud = self.get_usage_data()
+    def get_usage_data_clean(self, refresh=True):
+        ud = self.get_usage_data(refresh=refresh)
 
         ud['mrn'] = np.where(
             ud.extern_id.str.contains('^\d+$', regex=True),
@@ -157,11 +161,11 @@ class RPMDB:
 
         return ud
 
-    def get_stream(self, measure, member_id, tz='America/New_York'):
+    def get_stream(self, measure, member_id, tz='America/New_York', refresh=True):
         if type(member_id) != list:
             member_id = [member_id]
 
-        md_dat = self.get_meas_data()
+        md_dat = self.get_meas_data(refresh=refresh)
 
         md_dat['measured_at'] = md_dat['measured_at'].dt.tz_convert(tz)
 
@@ -200,9 +204,9 @@ class RPMDB:
             'outlier': outliers
         }
 
-    def plot(self, data_dict=None, measure=None, member_id=None, smoothing_factor=3600 * 24, layout={}, tz='America/New_York'):
+    def plot(self, data_dict=None, measure=None, member_id=None, smoothing_factor=3600 * 24, layout={}, tz='America/New_York', refresh=refresh):
         if data_dict is None:
-            data_dict = self.get_stream(measure, member_id, tz=tz)
+            data_dict = self.get_stream(measure, member_id, tz=tz, refresh=refresh)
 
         inliers = data_dict['inliers']
         outliers = data_dict['outlier']
