@@ -11,7 +11,7 @@ with meas AS (
       , m.measured_at_tz_offset
       , m.measure_day_et
       , m.measure_epoch
-      , DATE_PART('day', m.measure_day_et - to_timestamp(bt.enroll_epoch)) as days_since_enrollment
+      , DATE_PART('day', m.measured_at - to_timestamp(bt.enroll_epoch)) as days_since_enrollment
       , mem.first_name
       , mem.last_name
       , mem.extern_id
@@ -36,3 +36,4 @@ select
 from meas
 where 1=1
   and value_numeric is not null
+  
