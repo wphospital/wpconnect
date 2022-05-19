@@ -4,6 +4,7 @@ select distinct
 	, mem.email
 	, mem.first_name
 	, mem.last_name
+	, mem.first_name || ' ' mem.last_name as full_name
 	, mem.extern_id
 	, case when
 		mem.program = '' then 'None'
