@@ -10,6 +10,7 @@ import datetime as dt
 import plotly.express as px
 import plotly.graph_objects as go
 
+import statistics
 from scipy.interpolate import UnivariateSpline
 
 with open(os.path.join(os.path.dirname(__file__), 'rpm-cfg.yml'), 'rb') as file:
@@ -161,7 +162,16 @@ class RPMDB:
 
         return ud
 
-    def get_stream(self, measure, member_id, tz='America/New_York', refresh=True):
+    def safe_agg(x, agg):
+        if agg == 'mean':
+            return x.dropna().mean()
+        elif agg == 'median':
+            return x.dropna().median()
+        elif agg == 'stdev':
+            return statistics.stdev(x.dropna()) if len(x.dropna()) > 1 else 0
+
+
+    def get_stream(self, measure, member_id, tz='America/New_York', refresh=True, time_aggregation=None):
         if type(member_id) != list:
             member_id = [member_id]
 
@@ -172,7 +182,32 @@ class RPMDB:
         md_dat = md_dat\
             .sort_values('measured_at')
 
-        pt_data = md_dat[(md_dat.measure == measure) & (md_dat.member_id.isin(member_id))].copy()
+        pt_data = md_dat[
+            (md_dat.measure == measure) &\
+            (md_dat.member_id.isin(member_id))
+        ].copy()
+
+        if time_aggregation:
+            if time_aggregation == 'day':
+                pt_data['date_col'] = pt_data.measure_day_et
+
+                pt_data['date_col_numeric'] = pt_data.date_col.values.astype(float)
+
+            pt_data = pt_data\
+                .groupby(['measure', 'date_col', 'date_col_numeric'])\
+                .agg(
+                    value_numeric=pd.NamedAgg('value_numeric', lambda x: safe_agg(x, agg='median')),
+                    value_numeric_mean=pd.NamedAgg('value_numeric', lambda x: safe_agg(x, agg='mean')),
+                    value_numeric_sd=pd.NamedAgg('value_numeric', lambda x: safe_agg(x, 'stdev')),
+                    delta_from_last=pd.NamedAgg('delta_from_last', lambda x: safe_agg(x, 'median')),
+                    delta_from_last_mean=pd.NamedAgg('delta_from_last', lambda x: safe_agg(x, 'mean')),
+                    delta_from_last_sd=pd.NamedAgg('delta_from_last', lambda x: safe_agg(x, 'stdev'))
+                )\
+                .reset_index()
+        else:
+            pt_data['date_col'] = pt_data.measured_at
+
+            pt_data['date_col_numeric'] = pt_data.date_col.values.astype(float)
 
         arr1 = pt_data.value_numeric
 
@@ -191,9 +226,11 @@ class RPMDB:
         lower_bound = q1-(1.5*iqr)
 
         # outliers
-        pt_data['outlier'] = np.where((pt_data.value_numeric <= lower_bound) | (pt_data.value_numeric >= upper_bound), 1, 0)
-
-        pt_data['measured_at_numeric'] = pt_data.measured_at.values.astype(float)
+        pt_data['outlier'] = np.where(
+            (pt_data.value_numeric <= lower_bound) |\
+            (pt_data.value_numeric >= upper_bound),
+            1, 0
+        )
 
         inliers = pt_data[pt_data.outlier == 0]
         outliers = pt_data[pt_data.outlier == 1]
@@ -204,15 +241,15 @@ class RPMDB:
             'outlier': outliers.copy()
         }
 
-    def plot(self, data_dict=None, measure=None, member_id=None, smoothing_factor=3600 * 24, layout={}, tz='America/New_York', refresh=refresh):
+    def plot(self, data_dict=None, measure=None, member_id=None, smoothing_factor=3600 * 24, layout={}, tz='America/New_York', refresh=refresh, time_aggregation=None):
         if data_dict is None:
-            data_dict = self.get_stream(measure, member_id, tz=tz, refresh=refresh)
+            data_dict = self.get_stream(measure, member_id, tz=tz, refresh=refresh, time_aggregation=time_aggregation)
 
         inliers = data_dict['inliers']
         outliers = data_dict['outlier']
         full = data_dict['full']
 
-        spl = UnivariateSpline(inliers.measured_at_numeric, inliers.value_numeric)
+        spl = UnivariateSpline(inliers.date_col_numeric, inliers.value_numeric)
         spl.set_smoothing_factor(smoothing_factor)
 
         colors = {
@@ -225,7 +262,7 @@ class RPMDB:
 
         fig.add_trace(
             go.Scatter(
-                x=inliers.measured_at,
+                x=inliers.date_col,
                 y=inliers.value_numeric,
                 mode='markers',
                 marker={
@@ -237,7 +274,7 @@ class RPMDB:
 
         fig.add_trace(
             go.Scatter(
-                x=outliers.measured_at,
+                x=outliers.date_col,
                 y=outliers.value_numeric,
                 mode='markers',
                 marker={
@@ -250,8 +287,8 @@ class RPMDB:
 
         fig.add_trace(
             go.Scatter(
-                x=inliers.measured_at,
-                y=spl(inliers.measured_at_numeric),
+                x=inliers.date_col,
+                y=spl(inliers.date_col_numeric),
                 mode='lines',
                 line=dict(
                     color=colors['smoothed'],
@@ -262,12 +299,11 @@ class RPMDB:
             )
         )
 
-        initials = ', '.join(full.initials.unique().tolist())
-        latest_date = full.measured_at.max().strftime('%m/%d/%Y %H:%M:%S')
+        latest_date = full.date_col.max().strftime('%m/%d/%Y %H:%M:%S')
         measure_title = measure.title()
 
         default_layout = dict(
-            title=f'{measure_title} measurement stream ({initials})<br><sup>Latest measurement: {latest_date}</sup>',
+            title=f'{measure_title} measurement stream<br><sup>Latest measurement: {latest_date}</sup>',
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             yaxis={
