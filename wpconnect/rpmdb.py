@@ -187,6 +187,9 @@ class RPMDB:
             (md_dat.member_id.isin(member_id))
         ].copy()
 
+        if len(pt_data) == 0:
+            return pt_data
+
         if time_aggregation:
             if time_aggregation == 'day':
                 pt_data['date_col'] = pt_data.measure_day_et
