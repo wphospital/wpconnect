@@ -162,6 +162,7 @@ class RPMDB:
 
         return ud
 
+    @staticmethod
     def safe_agg(x, agg):
         if agg == 'mean':
             return x.dropna().mean()
@@ -169,7 +170,6 @@ class RPMDB:
             return x.dropna().median()
         elif agg == 'stdev':
             return statistics.stdev(x.dropna()) if len(x.dropna()) > 1 else 0
-
 
     def get_stream(self, measure, member_id, tz='America/New_York', refresh=True, time_aggregation=None):
         if type(member_id) != list:
@@ -196,12 +196,12 @@ class RPMDB:
             pt_data = pt_data\
                 .groupby(['measure', 'date_col', 'date_col_numeric'])\
                 .agg(
-                    value_numeric=pd.NamedAgg('value_numeric', lambda x: safe_agg(x, agg='median')),
-                    value_numeric_mean=pd.NamedAgg('value_numeric', lambda x: safe_agg(x, agg='mean')),
-                    value_numeric_sd=pd.NamedAgg('value_numeric', lambda x: safe_agg(x, 'stdev')),
-                    delta_from_last=pd.NamedAgg('delta_from_last', lambda x: safe_agg(x, 'median')),
-                    delta_from_last_mean=pd.NamedAgg('delta_from_last', lambda x: safe_agg(x, 'mean')),
-                    delta_from_last_sd=pd.NamedAgg('delta_from_last', lambda x: safe_agg(x, 'stdev'))
+                    value_numeric=pd.NamedAgg('value_numeric', lambda x: self.safe_agg(x, agg='median')),
+                    value_numeric_mean=pd.NamedAgg('value_numeric', lambda x: self.safe_agg(x, agg='mean')),
+                    value_numeric_sd=pd.NamedAgg('value_numeric', lambda x: self.safe_agg(x, 'stdev')),
+                    delta_from_last=pd.NamedAgg('delta_from_last', lambda x: self.safe_agg(x, 'median')),
+                    delta_from_last_mean=pd.NamedAgg('delta_from_last', lambda x: self.safe_agg(x, 'mean')),
+                    delta_from_last_sd=pd.NamedAgg('delta_from_last', lambda x: self.safe_agg(x, 'stdev'))
                 )\
                 .reset_index()
         else:
