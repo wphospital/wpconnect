@@ -188,7 +188,11 @@ class RPMDB:
         ].copy()
 
         if len(pt_data) == 0:
-            return pt_data
+            return {
+                'full': pt_data.copy(),
+                'inliers': pt_data.copy(),
+                'outlier': pt_data.copy()
+            }
 
         if time_aggregation:
             if time_aggregation == 'day':
