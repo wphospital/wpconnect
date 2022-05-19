@@ -202,7 +202,7 @@ class RPMDB:
                 )\
                 .reset_index()
 
-                pt_data['delta_from_last'] = pt_data['value_numeric'] / pt_data['value_numeric'].shift(1) + 1e-10 - 1
+            pt_data['delta_from_last'] = pt_data['value_numeric'] / pt_data['value_numeric'].shift(1) + 1e-10 - 1
         else:
             pt_data['date_col'] = pt_data.measured_at
 
