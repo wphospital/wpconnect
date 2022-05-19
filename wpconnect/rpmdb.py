@@ -198,12 +198,11 @@ class RPMDB:
                 .agg(
                     value_numeric=pd.NamedAgg('value_numeric', lambda x: self.safe_agg(x, agg='median')),
                     value_numeric_mean=pd.NamedAgg('value_numeric', lambda x: self.safe_agg(x, agg='mean')),
-                    value_numeric_sd=pd.NamedAgg('value_numeric', lambda x: self.safe_agg(x, 'stdev')),
-                    delta_from_last=pd.NamedAgg('delta_from_last', lambda x: self.safe_agg(x, 'median')),
-                    delta_from_last_mean=pd.NamedAgg('delta_from_last', lambda x: self.safe_agg(x, 'mean')),
-                    delta_from_last_sd=pd.NamedAgg('delta_from_last', lambda x: self.safe_agg(x, 'stdev'))
+                    value_numeric_sd=pd.NamedAgg('value_numeric', lambda x: self.safe_agg(x, 'stdev'))
                 )\
                 .reset_index()
+
+                pt_data['delta_from_last'] = pt_data['value_numeric'] / pt_data['value_numeric'].shift(1) + 1e-10 - 1
         else:
             pt_data['date_col'] = pt_data.measured_at
 
