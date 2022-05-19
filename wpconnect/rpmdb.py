@@ -199,9 +199,9 @@ class RPMDB:
         outliers = pt_data[pt_data.outlier == 1]
 
         return {
-            'full': pt_data,
-            'inliers': inliers,
-            'outlier': outliers
+            'full': pt_data.copy(),
+            'inliers': inliers.copy(),
+            'outlier': outliers.copy()
         }
 
     def plot(self, data_dict=None, measure=None, member_id=None, smoothing_factor=3600 * 24, layout={}, tz='America/New_York', refresh=refresh):
