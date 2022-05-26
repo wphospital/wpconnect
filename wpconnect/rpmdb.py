@@ -112,6 +112,7 @@ class RPMDB:
 
     def get_billing_data_clean(self, refresh=True):
         bd = self.get_billing_data(refresh=refresh)
+        md = self.get_members(refresh=False)
 
         bd['mrn'] = np.where(
             bd.extern_id.str.contains('^\d+$', regex=True),
@@ -119,7 +120,15 @@ class RPMDB:
             None
         )
 
-        bd = bd[bd.last_name != 'Test'][['full_name', 'mrn', 'email', 'billing_period', 'start_period', 'end_period', 'measurements_per_period', 'setup_code', 'high_use_code']]\
+        bd = bd\
+            .query('last_name != "Test"')\
+            .merge(
+                md[['id', 'program']],
+                left_on='member_id',
+                right_on='id',
+                how='left'
+            )\
+            [['full_name', 'mrn', 'email', 'program', 'billing_period', 'start_period', 'end_period', 'measurements_per_period', 'setup_code', 'high_use_code']]\
             .replace(
                 {
                     'setup_code': {0: 'Ineligible', 1: 'Eligible'},
@@ -130,6 +139,7 @@ class RPMDB:
                 'full_name': 'Name',
                 'mrn': 'MRN',
                 'email': 'Email',
+                'program': 'Program',
                 'billing_period': 'Billing Period',
                 'start_period': 'Period Start',
                 'end_period': 'Period End',
