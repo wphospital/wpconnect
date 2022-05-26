@@ -123,12 +123,12 @@ class RPMDB:
         bd = bd\
             .query('last_name != "Test"')\
             .merge(
-                md[['id', 'program']],
+                md[['id', 'program', 'birth_date']],
                 left_on='member_id',
                 right_on='id',
                 how='left'
             )\
-            [['full_name', 'mrn', 'email', 'program', 'billing_period', 'start_period', 'end_period', 'measurements_per_period', 'setup_code', 'high_use_code']]\
+            [['full_name', 'mrn', 'birth_date', 'email', 'program', 'billing_period', 'start_period', 'end_period', 'measurements_per_period', 'setup_code', 'high_use_code']]\
             .replace(
                 {
                     'setup_code': {0: 'Ineligible', 1: 'Eligible'},
@@ -138,6 +138,7 @@ class RPMDB:
             .rename(columns={
                 'full_name': 'Name',
                 'mrn': 'MRN',
+                'birth_date': 'Birth Date',
                 'email': 'Email',
                 'program': 'Program',
                 'billing_period': 'Billing Period',
