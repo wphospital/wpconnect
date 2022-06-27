@@ -26,6 +26,18 @@ class Query:
         password=None,
         repo=None
     ):
+        """Class used to request and access information from repositories.
+
+        Args:
+            connection_type: Select connection type. Defaults to None.
+            environ: Select the environment. Defaults to None.
+            server: Select desired database to use. Defaults to settings.WPH_SERVER.
+            database: Slect which database to use. Defaults to settings.WPH_DATABASE.
+            port: Slect port that will be in use. Defaults to None.
+            username: Select username credentials. Defaults to None.
+            password: Select password credentials. Defaults to None.
+            repo: Select repository. Defaults to None.
+        """
         self.connection = Connect(connection_type, environ, server, database, port, username, password)
         self.conn = self.connection.conn
         self.query_libs = ['.']
@@ -40,15 +52,31 @@ class Query:
             self.configure_repo()
 
     def __enter__(self):
+        """Magic method
+
+        Returns:
+            Function: Ability to implement objects using a with statement
+        """
         return self
 
     def __exit__(self, type, value, tb):
+        """Magic method
+
+        Returns:
+            Function: Ability to implement objects using a with statement
+        """
+        
         self.connection.close()
 
     def add_query_libs(
         self,
         query_libs: list
     ):
+        """Function that lists requested quireis
+
+        Args:
+            query_libs (list): _description_
+        """
         query_libs = [query_libs] if type(query_libs) != list else query_libs
 
         for l in query_libs:
@@ -60,6 +88,15 @@ class Query:
         r,
         d
     ):
+        """Function that describes and returns information based on directory levels
+
+        Args:
+            r (_type_): r level
+            d (_type_): d level
+
+        Returns:
+            _type_: directory in list form based on the directory level selected
+        """
         level_dirs = []
 
         # Identify directories at this level
@@ -74,6 +111,11 @@ class Query:
     def configure_repo(
         self
     ):
+        """Describes requirements to Query information from repositiories (repo/s)
+
+        Raises:
+            UserError: If requirments aren't meant.
+        """
         needed_keys = ['access_token', 'username', 'repo']
 
         missing_keys = [k for k in needed_keys if k not in self.repo.keys()]
@@ -139,6 +181,14 @@ class Query:
         self,
         filename
     ):
+        """_summary_
+
+        Args:
+            filename (_type_): _description_
+
+        Returns:
+            Function: Returns selected repository
+        """
         headers = {'Authorization': 'token %s' % self.repo['access_token']}
 
         res = requests.get(self.cfs[filename], headers=headers)
@@ -152,6 +202,14 @@ class Query:
         self,
         filename,
     ):
+        """Establishes ability to return sql query while querying the repositories
+
+        Args:
+            filename (_type_): _description_
+
+        Returns:
+            Function: Returns SQL query of the selected repo.
+        """
         if self.repo_config:
             query = self._get_repo_query(filename)
         else:
@@ -176,6 +234,18 @@ class Query:
         params: list = None,
         return_type: str = settings.DEFAULT_RETURN,
     ):
+        
+        """Executes query under specified paramters
+
+        Raises:
+            ValueError: Query did not return any rows
+            err: raised if aformentioned occured
+            ValueError: Query did not return any rows
+            err: raised if aformentioned occured
+
+        Returns:
+            Query: Query is exectued and returned 
+        """
         if query:
             if params:
                 params = [params] if type(params) != list else params
@@ -234,6 +304,16 @@ class Query:
         params: list = None,
         return_type: str = settings.DEFAULT_RETURN
     ):
+        """Imported queiries can be returned
+
+        Args:
+            query_file (str): _description_
+            params (list, optional): _description_. Defaults to None.
+            return_type (str, optional): _description_. Defaults to settings.DEFAULT_RETURN.
+
+        Returns:
+            Query: imported queiries returned
+        """
         query = self.import_sql(query_file)
 
         return self.execute_query(query, params=params, return_type=return_type)
@@ -242,12 +322,16 @@ class Query:
         self,
         return_type: str = settings.DEFAULT_RETURN,
     ):
+        """Returns a list of tables
+        """
         return self.execute_imported('list_tables.sql')
 
     def list_objects(
         self,
         return_type: str = settings.DEFAULT_RETURN,
     ):
+        """Returns a list of queried objects
+        """
         return self.execute_imported('list_objects.sql')
 
 
@@ -255,6 +339,8 @@ class Query:
         self,
         return_type: str = settings.DEFAULT_RETURN,
     ):
+        """Returns the columns of the query
+        """
         return self.execute_imported('list_columns.sql')
 
     def to_sql(
@@ -262,6 +348,8 @@ class Query:
         df,
         **kwargs
     ):
+        """Function that changes df format to SQL.
+        """
         df.to_sql(
             con=self.conn,
             **kwargs
