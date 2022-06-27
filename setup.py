@@ -1,10 +1,13 @@
 from setuptools import setup
 
 def readme():
+    """Returns the README page"""
     with open('README.rst') as f:
         return f.read()
 
+"""setup lists the configurations to set up and connect to wpconnect"""
 setup(
+    
     name='wpconnect',
     version='2.0',
     description='Internal package for convenience functions in data warehouse',
