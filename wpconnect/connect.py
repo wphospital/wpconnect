@@ -9,6 +9,9 @@ from urllib.parse import quote_plus
 settings = Settings()
 
 class Connect:
+    """Connection specifications.
+    Class comprised of multiple connect functions/possible servers and databases to connect to
+    """
     def __init__(
         self,
         connection_type=None,
@@ -20,6 +23,7 @@ class Connect:
         password=None,
         trusted_connection=True,
     ):
+        """Constructer for the Connect Class offering multiple connection pathways"""
         self.trusted_connection = trusted_connection
 
         # Connection
@@ -64,12 +68,21 @@ class Connect:
         self.conn = self.create_connection()
 
     def __enter__(self):
+        """Magic method
+
+        Returns:
+            Function: Ability to implement objects using a with statement
+        """
         return self
 
     def close(self):
+        """closese the connected object
+        """
         self.conn.close()
 
     def set_connection_string(self):
+        """Funtion that specifies the requirements to connect
+        """
         if self.password:
             safe_password = quote_plus(self.password)
 
@@ -97,6 +110,14 @@ class Connect:
             )
 
     def create_connection(self):
+        """Function that establishes the actual connection
+
+        Raises:
+            err: Error returned for attempting to connect to an already initialized connection
+
+        Returns:
+            Function: Returns actual connection if no errors are present
+        """
         self.set_connection_string()
 
         try:

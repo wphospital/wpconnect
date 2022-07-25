@@ -10,29 +10,47 @@ import datetime as dt
 import plotly.express as px
 import plotly.graph_objects as go
 
-import statistics
 from scipy.interpolate import UnivariateSpline
 
-with open(os.path.join(os.path.dirname(__file__), 'rpm-cfg.yml'), 'rb') as file:
+with open('cfg.yml', 'rb') as file:
+    """Ability to load and read yaml files
+    """
     cfg = yaml.load(file, Loader=yaml.FullLoader)
 
 # Get today's date
 def _get_date():
+    """Gets todays date
+
+    Returns: Today's Date
+    """
     return dt.datetime.now().date()
 
 def _get_date_str():
+    """Returns date in 'Ymd' format
+    """
     return _get_date().strftime('%Y%m%d')
 
 today = _get_date_str()
 
 class RPMDB:
-    query_dir = os.path.join(os.path.dirname(__file__), cfg['query_dir'])
+    """Databsed created for Remote Patient Monitoring
+    """
+    query_dir = cfg['query_dir']
 
     queries = [f for f in os.listdir(query_dir) if '.sql' in f]
 
     date_cols = cfg['date_cols']
 
     def __init__(self, host, user, password, port=5432, autorefresh=None):
+        """Initializes connection
+
+        Args:
+            host (_type_): _description_
+            user (_type_): _description_
+            password (_type_): _description_
+            port (int, optional): _description_. Defaults to 5432.
+            autorefresh (_type_, optional): _description_. Defaults to None.
+        """
         self.conn_str = self._conn_str(host, user, password, port)
 
         self.autorefresh = autorefresh
@@ -42,6 +60,8 @@ class RPMDB:
         self.refresh()
 
     def _method_map(self):
+        """Give names to pathways (method maps)
+        """
         return {
             'billing': self.get_billing_data_clean,
             'usage': self.get_usage_data_clean,
@@ -49,6 +69,8 @@ class RPMDB:
         }
 
     def _conn_str(self, host, user, password, port=5432):
+        """connection spec strings
+        """
         stem = cfg['conn_str']
 
         return stem.format(
@@ -59,9 +81,13 @@ class RPMDB:
         )
 
     def _connector(self):
+        """connection created using connector python library
+        """
         return psycopg2.connect(self.conn_str)
 
     def refresh(self):
+        """Refreshes information in the query to today's date
+        """
         for q in self.queries:
             with open(os.path.join(self.query_dir, q), 'r') as file:
                 query = file.read()
@@ -79,40 +105,47 @@ class RPMDB:
         self.refresh_time = dt.datetime.now()
 
     def last_refresh(self):
+        """Shows last time class was refreshed
+        """
         return dt.datetime.utcnow() - self.refresh_time
 
     @staticmethod
     def _get_query(q):
+        """Returns read query"""
         with open(os.path.join(self.query_dir, q + '.sql'), 'rb') as file:
             return file.read()
 
-    def get_billing_data(self, refresh=True):
-        if refresh:
-            self.refresh()
+    def get_billing_data(self):
+        """Patient Billing Data
+        """
+        self.refresh()
 
         return self.billing
 
-    def get_usage_data(self, refresh=True):
-        if refresh:
-            self.refresh()
+    def get_usage_data(self):
+        """Summary of patient usage by last measurements taken
+        """
+        self.refresh()
 
         return self.usage
 
-    def get_meas_data(self, refresh=True):
-        if refresh:
-            self.refresh()
+    def get_meas_data(self):
+        """Returns patient measurement data 
+        """
+        self.refresh()
 
         return self.measures
 
-    def get_members(self, refresh=True):
-        if refresh:
-            self.refresh()
+    def get_members(self):
+        """Returns patients enrolled into RPM
+        """
+        self.refresh()
 
         return self.members
 
-    def get_billing_data_clean(self, refresh=True):
-        bd = self.get_billing_data(refresh=refresh)
-        md = self.get_members(refresh=False)
+    def get_billing_data_clean(self):
+        """Returns updated verion of get_billing_data"""
+        bd = self.get_billing_data()
 
         bd['mrn'] = np.where(
             bd.extern_id.str.contains('^\d+$', regex=True),
@@ -120,15 +153,7 @@ class RPMDB:
             None
         )
 
-        bd = bd\
-            .query('last_name != "Test"')\
-            .merge(
-                md[['id', 'program', 'birth_date']],
-                left_on='member_id',
-                right_on='id',
-                how='left'
-            )\
-            [['full_name', 'mrn', 'birth_date', 'email', 'program', 'billing_period', 'start_period', 'end_period', 'measurements_per_period', 'setup_code', 'high_use_code']]\
+        bd = bd[bd.last_name != 'Test'][['full_name', 'mrn', 'email', 'billing_period', 'start_period', 'end_period', 'measurements_per_period', 'setup_code', 'high_use_code']]\
             .replace(
                 {
                     'setup_code': {0: 'Ineligible', 1: 'Eligible'},
@@ -138,9 +163,7 @@ class RPMDB:
             .rename(columns={
                 'full_name': 'Name',
                 'mrn': 'MRN',
-                'birth_date': 'Birth Date',
                 'email': 'Email',
-                'program': 'Program',
                 'billing_period': 'Billing Period',
                 'start_period': 'Period Start',
                 'end_period': 'Period End',
@@ -151,8 +174,10 @@ class RPMDB:
 
         return bd
 
-    def get_usage_data_clean(self, refresh=True):
-        ud = self.get_usage_data(refresh=refresh)
+    def get_usage_data_clean(self):
+        """Returns an updated version of get_usage_data
+        """
+        ud = self.get_usage_data()
 
         ud['mrn'] = np.where(
             ud.extern_id.str.contains('^\d+$', regex=True),
@@ -173,20 +198,13 @@ class RPMDB:
 
         return ud
 
-    @staticmethod
-    def safe_agg(x, agg):
-        if agg == 'mean':
-            return x.dropna().mean()
-        elif agg == 'median':
-            return x.dropna().median()
-        elif agg == 'stdev':
-            return statistics.stdev(x.dropna()) if len(x.dropna()) > 1 else 0
-
-    def get_stream(self, measure, member_id, tz='America/New_York', refresh=True, time_aggregation=None):
+    def get_stream(self, measure, member_id, tz='America/New_York'):
+        """Returns memembers measurements, measurement times,dates, and averages over time 
+        """
         if type(member_id) != list:
             member_id = [member_id]
 
-        md_dat = self.get_meas_data(refresh=refresh)
+        md_dat = self.get_meas_data()
 
         md_dat['measured_at'] = md_dat['measured_at'].dt.tz_convert(tz)
 
@@ -243,30 +261,30 @@ class RPMDB:
         lower_bound = q1-(1.5*iqr)
 
         # outliers
-        pt_data['outlier'] = np.where(
-            (pt_data.value_numeric <= lower_bound) |\
-            (pt_data.value_numeric >= upper_bound),
-            1, 0
-        )
+        pt_data['outlier'] = np.where((pt_data.value_numeric <= lower_bound) | (pt_data.value_numeric >= upper_bound), 1, 0)
+
+        pt_data['measured_at_numeric'] = pt_data.measured_at.values.astype(float)
 
         inliers = pt_data[pt_data.outlier == 0]
         outliers = pt_data[pt_data.outlier == 1]
 
         return {
-            'full': pt_data.copy(),
-            'inliers': inliers.copy(),
-            'outlier': outliers.copy()
+            'full': pt_data,
+            'inliers': inliers,
+            'outlier': outliers
         }
 
-    def plot(self, data_dict=None, measure=None, member_id=None, smoothing_factor=3600 * 24, layout={}, tz='America/New_York', refresh=refresh, time_aggregation=None):
+    def plot(self, data_dict=None, measure=None, member_id=None, smoothing_factor=3600 * 24, layout={}, tz='America/New_York'):
+        """Creates a plot based on a patients measurments taken/stored overtime
+        """
         if data_dict is None:
-            data_dict = self.get_stream(measure, member_id, tz=tz, refresh=refresh, time_aggregation=time_aggregation)
+            data_dict = self.get_stream(measure, member_id, tz=tz)
 
         inliers = data_dict['inliers']
         outliers = data_dict['outlier']
         full = data_dict['full']
 
-        spl = UnivariateSpline(inliers.date_col_numeric, inliers.value_numeric)
+        spl = UnivariateSpline(inliers.measured_at_numeric, inliers.value_numeric)
         spl.set_smoothing_factor(smoothing_factor)
 
         colors = {
@@ -279,7 +297,7 @@ class RPMDB:
 
         fig.add_trace(
             go.Scatter(
-                x=inliers.date_col,
+                x=inliers.measured_at,
                 y=inliers.value_numeric,
                 mode='markers',
                 marker={
@@ -291,7 +309,7 @@ class RPMDB:
 
         fig.add_trace(
             go.Scatter(
-                x=outliers.date_col,
+                x=outliers.measured_at,
                 y=outliers.value_numeric,
                 mode='markers',
                 marker={
@@ -304,8 +322,8 @@ class RPMDB:
 
         fig.add_trace(
             go.Scatter(
-                x=inliers.date_col,
-                y=spl(inliers.date_col_numeric),
+                x=inliers.measured_at,
+                y=spl(inliers.measured_at_numeric),
                 mode='lines',
                 line=dict(
                     color=colors['smoothed'],
@@ -316,11 +334,12 @@ class RPMDB:
             )
         )
 
-        latest_date = full.date_col.max().strftime('%m/%d/%Y %H:%M:%S')
+        initials = ', '.join(full.initials.unique().tolist())
+        latest_date = full.measured_at.max().strftime('%m/%d/%Y %H:%M:%S')
         measure_title = measure.title()
 
         default_layout = dict(
-            title=f'{measure_title} measurement stream<br><sup>Latest measurement: {latest_date}</sup>',
+            title=f'{measure_title} measurement stream ({initials})<br><sup>Latest measurement: {latest_date}</sup>',
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             yaxis={
@@ -342,12 +361,15 @@ class RPMDB:
     # Ensure data path
     @staticmethod
     def _ensure_path(fp):
+        """Ensures the path queried exists"""
         if not os.path.exists(fp):
             os.mkdir(fp)
 
     # Get a filename
     @staticmethod
     def _get_fp(data_dir, bases, format='csv'):
+        """Returns file name of queried path
+        """
         if 'xls' in format:
             joined_base = '_'.join(bases)
 
@@ -358,6 +380,8 @@ class RPMDB:
     # Write the query data to a file in the data_dir
     @staticmethod
     def _write_data(dfs, fps, format):
+        """Returns query to a file in the data directory
+        """
         if re.search('csv', format):
             for k in dfs.keys():
                 dfs[k].to_csv(fps[k], index=False)
@@ -381,6 +405,7 @@ class RPMDB:
 
     # Write data to a path
     def write_data(self, endpoints, data_dir='data', query_params='', format='csv'):
+        """Returns data to query path"""
         endpoints = [endpoints] if type(endpoints) != list else endpoints
 
         fps = self._get_fp(data_dir, endpoints, format)
@@ -392,3 +417,4 @@ class RPMDB:
         self._write_data(dats, fps, format)
 
         return list(fps.values()) if type(fps) == dict else fps
+
