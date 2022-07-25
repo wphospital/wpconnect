@@ -29,14 +29,14 @@ class Query:
         """Class used to request and access information from repositories.
 
         Args:
-            connection_type: Select connection type. Defaults to None.
-            environ: Select the environment. Defaults to None.
-            server: Select desired database to use. Defaults to settings.WPH_SERVER.
-            database: Slect which database to use. Defaults to settings.WPH_DATABASE.
-            port: Slect port that will be in use. Defaults to None.
-            username: Select username credentials. Defaults to None.
-            password: Select password credentials. Defaults to None.
-            repo: Select repository. Defaults to None.
+            connection_type (_type_, optional): _description_. Defaults to None.
+            environ (_type_, optional): _description_. Defaults to None.
+            server (_type_, optional): _description_. Defaults to settings.WPH_SERVER.
+            database (_type_, optional): _description_. Defaults to settings.WPH_DATABASE.
+            port (_type_, optional): _description_. Defaults to None.
+            username (_type_, optional): _description_. Defaults to None.
+            password (_type_, optional): _description_. Defaults to None.
+            repo (_type_, optional): _description_. Defaults to None.
         """
         self.connection = Connect(connection_type, environ, server, database, port, username, password)
         self.conn = self.connection.conn
@@ -72,7 +72,7 @@ class Query:
         self,
         query_libs: list
     ):
-        """Function that lists requested quireis
+        """Function that lists requested queries
 
         Args:
             query_libs (list): _description_
@@ -181,13 +181,13 @@ class Query:
         self,
         filename
     ):
-        """_summary_
+        """A function that will return the query of a selected repository.
 
         Args:
-            filename (_type_): _description_
+            self,filename
 
         Returns:
-            Function: Returns selected repository
+            Function: Returns query of a selected repository.
         """
         headers = {'Authorization': 'token %s' % self.repo['access_token']}
 
@@ -202,13 +202,14 @@ class Query:
         self,
         filename,
     ):
-        """Establishes ability to return sql query while querying the repositories
+        """Function that returns a SQL query. 
 
         Args:
-            filename (_type_): _description_
+            self
+            filename
 
         Returns:
-            Function: Returns SQL query of the selected repo.
+            Function: Returns query if available in the repo_config, or package data.
         """
         if self.repo_config:
             query = self._get_repo_query(filename)

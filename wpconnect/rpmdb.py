@@ -211,7 +211,38 @@ class RPMDB:
         md_dat = md_dat\
             .sort_values('measured_at')
 
-        pt_data = md_dat[(md_dat.measure == measure) & (md_dat.member_id.isin(member_id))].copy()
+        pt_data = md_dat[
+            (md_dat.measure == measure) &\
+            (md_dat.member_id.isin(member_id))
+        ].copy()
+
+        if len(pt_data) == 0:
+            return {
+                'full': pt_data.copy(),
+                'inliers': pt_data.copy(),
+                'outlier': pt_data.copy()
+            }
+
+        if time_aggregation:
+            if time_aggregation == 'day':
+                pt_data['date_col'] = pt_data.measure_day_et
+
+                pt_data['date_col_numeric'] = pt_data.date_col.values.astype(float)
+
+            pt_data = pt_data\
+                .groupby(['measure', 'date_col', 'date_col_numeric'])\
+                .agg(
+                    value_numeric=pd.NamedAgg('value_numeric', lambda x: self.safe_agg(x, agg='median')),
+                    value_numeric_mean=pd.NamedAgg('value_numeric', lambda x: self.safe_agg(x, agg='mean')),
+                    value_numeric_sd=pd.NamedAgg('value_numeric', lambda x: self.safe_agg(x, 'stdev'))
+                )\
+                .reset_index()
+
+            pt_data['delta_from_last'] = pt_data['value_numeric'] / pt_data['value_numeric'].shift(1) + 1e-10 - 1
+        else:
+            pt_data['date_col'] = pt_data.measured_at
+
+            pt_data['date_col_numeric'] = pt_data.date_col.values.astype(float)
 
         arr1 = pt_data.value_numeric
 
@@ -386,3 +417,4 @@ class RPMDB:
         self._write_data(dats, fps, format)
 
         return list(fps.values()) if type(fps) == dict else fps
+
