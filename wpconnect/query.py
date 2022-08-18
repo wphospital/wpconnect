@@ -175,6 +175,7 @@ class Query:
         query: str,
         params: list = None,
         return_type: str = settings.DEFAULT_RETURN,
+        chunksize: int = None,
     ):
         if query:
             if params:
@@ -192,7 +193,7 @@ class Query:
                 return
             elif return_type == 'DataFrame':
                 try:
-                    res = pd.read_sql(query, self.conn, params=params)
+                    res = pd.read_sql(query, self.conn, params=params, chunksize=chunksize)
                 except pd.io.sql.DatabaseError as err:
                     warnings.warn(str(err), UserWarning)
                     return
@@ -232,11 +233,12 @@ class Query:
         self,
         query_file: str,
         params: list = None,
-        return_type: str = settings.DEFAULT_RETURN
+        return_type: str = settings.DEFAULT_RETURN,
+        chunksize: int = None,
     ):
         query = self.import_sql(query_file)
 
-        return self.execute_query(query, params=params, return_type=return_type)
+        return self.execute_query(query, params=params, return_type=return_type, chunksize=chunksize)
 
     def list_tables(
         self,
