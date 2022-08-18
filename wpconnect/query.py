@@ -193,7 +193,10 @@ class Query:
                 return
             elif return_type == 'DataFrame':
                 try:
-                    res = pd.read_sql(query, self.conn, params=params, chunksize=chunksize)
+                    db_res = pd.read_sql(query, self.conn, params=params, chunksize=chunksize)
+
+                    res = pd.concat([r for r in db_res]) if chunksize else db_res
+
                 except pd.io.sql.DatabaseError as err:
                     warnings.warn(str(err), UserWarning)
                     return
