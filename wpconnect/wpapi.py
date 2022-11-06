@@ -41,19 +41,33 @@ class WPAPIRequest:
             password=password
         )
 
-    def get(self, query_fn, **kwargs):
+    @staticmethod
+    def package_params(params):
+        return ','.join([f'{k}={v}' for k, v in params.items()])
+
+    def get(self, query_fn, query_params : dict = None, **kwargs):
         self.last_query_fn = query_fn
         self.last_params = kwargs
 
+        send_params = {
+            **{
+                'query_fn': query_fn,
+                'return_cache_key': True
+            },
+            **kwargs
+        }
+
+        if query_params:
+            send_params = {
+                **send_params,
+                **{'query_params': self.package_params(query_params)}
+            }
+
+        print(send_params)
+
         res = requests.get(
             settings.WPAPI + 'repo_query',
-            params={
-                **{
-                    'query_fn': query_fn,
-                    'return_cache_key': True
-                },
-                **kwargs
-            }
+            params=send_params
         )
 
         resp = WPAPIResponse(
