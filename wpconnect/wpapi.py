@@ -43,7 +43,12 @@ class WPAPIRequest:
 
     @staticmethod
     def package_params(params):
-        return ','.join([f'{k}={v}' for k, v in params.items()])
+        return ','.join(['{}={}'.format(
+            k,
+            '({})'.format(
+                ','.join([f'\'{i}\'' for i in v])
+            ) if isinstance(v, list) else v
+        ) for k, v in params.items()])
 
     def get(self, query_fn, query_params : dict = None, **kwargs):
         self.last_query_fn = query_fn
