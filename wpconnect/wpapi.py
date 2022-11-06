@@ -13,8 +13,9 @@ class WPAPIResponse:
 
         self.iserror = False
 
-    def set_data(self, data):
+    def set_data(self, data, key):
         self._data = data
+        self._key = key
 
     def get_data(self):
         if self.iserror:
@@ -56,7 +57,6 @@ class WPAPIRequest:
         )
 
         res = WPAPIResponse(
-            key=key,
             cached=res.headers.get('data-cached'),
             status_code=res.status_code
         )
@@ -66,7 +66,7 @@ class WPAPIRequest:
 
             data = self.cache.get(self.prefix + self.last_key)
 
-            res.set_data(data=data)
+            res.set_data(data=data, key=self.last_key)
         else:
             res.set_error(res.text)
 
