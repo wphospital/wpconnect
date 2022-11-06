@@ -63,8 +63,6 @@ class WPAPIRequest:
                 **{'query_params': self.package_params(query_params)}
             }
 
-        print(send_params)
-
         res = requests.get(
             settings.WPAPI + 'repo_query',
             params=send_params
