@@ -56,7 +56,7 @@ class WPAPIRequest:
             }
         )
 
-        res = WPAPIResponse(
+        resp = WPAPIResponse(
             cached=res.headers.get('data-cached'),
             status_code=res.status_code
         )
@@ -66,8 +66,8 @@ class WPAPIRequest:
 
             data = self.cache.get(self.prefix + self.last_key)
 
-            res.set_data(data=data, key=self.last_key)
+            resp.set_data(data=data, key=self.last_key)
         else:
-            res.set_error(res.text)
+            resp.set_error(res.text)
 
-        return res
+        return resp
