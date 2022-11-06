@@ -35,7 +35,7 @@ class WPAPIRequest:
         self.last_params = kwargs
 
         res = requests.get(
-            cfg['wpapi'] + 'repo_query',
+            settings.WPAPI + 'repo_query',
             params={
                 **{
                     'query_fn': query_fn,
