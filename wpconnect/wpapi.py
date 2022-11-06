@@ -57,8 +57,9 @@ class WPAPIRequest:
         )
 
         resp = WPAPIResponse(
-            cached=res.headers.get('data-cached'),
-            status_code=res.status_code
+            cached=res.headers.get('data-cached') == 'True',
+            status_code=res.status_code,
+            request_res=res
         )
 
         if res.status_code == 200:
