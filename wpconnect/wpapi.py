@@ -11,11 +11,21 @@ class WPAPIResponse:
         for _, k in kwargs.items():
             self.__dict__[_] =  k
 
+        self.iserror = False
+
     def set_data(self, data):
         self._data = data
 
     def get_data(self):
-        return pickle.loads(self._data)
+        if self.iserror:
+            return self._error
+        else:
+            return pickle.loads(self._data)
+
+    def set_error(self, error):
+        self.iserror = True
+
+        self._error = error
 
 class WPAPIRequest:
     def __init__(self, password, prefix='flask_cache_'):
@@ -45,18 +55,19 @@ class WPAPIRequest:
             }
         )
 
-        key = res.json()
-
-        self.last_key = key
-
-        data = self.cache.get(self.prefix + key)
-
         res = WPAPIResponse(
             key=key,
             cached=res.headers.get('data-cached'),
             status_code=res.status_code
         )
 
-        res.set_data(data=data)
+        if res.status_code == 200:
+            self.last_key = res.json()
+
+            data = self.cache.get(self.prefix + self.last_key)
+
+            res.set_data(data=data)
+        else:
+            res.set_error(res.text)
 
         return res
