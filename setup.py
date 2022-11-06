@@ -6,7 +6,7 @@ def readme():
 
 setup(
     name='wpconnect',
-    version='2.0',
+    version='3.0',
     description='Internal package for convenience functions in data warehouse',
     long_description=readme(),
     classifiers=[
@@ -20,15 +20,18 @@ setup(
     license='MIT',
     packages=['wpconnect'],
     install_requires=[
+        'cachelib',
         'markdown',
         'pyodbc',
         'pandas',
         'cx_Oracle',
         'sqlalchemy',
+        'pickle',
         'PyGithub',
         'psycopg2',
         'pyyaml',
         'plotly',
+        'requests',
         'scipy'
     ],
     package_data={'wpconnect': ['oracle_dlls/*.dll', 'queries/*.sql', 'rpm-queries/*.sql', 'rpm-cfg.yml']},

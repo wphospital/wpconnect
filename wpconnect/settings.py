@@ -20,3 +20,7 @@ class Settings:
 
     # IO configs
     DEFAULT_RETURN = 'DataFrame'
+
+    # WPAPI Redis configs
+    WPAPI_REDIS_HOST = '10.16.8.21'
+    WPAPI_REDIS_PORT = 6380
