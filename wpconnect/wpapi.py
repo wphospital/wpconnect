@@ -46,7 +46,7 @@ class WPAPIRequest:
         return ','.join(['{}={}'.format(
             k,
             '({})'.format(
-                ','.join([f'\'{i}\'' for i in v])
+                ';'.join([f'\'{i}\'' for i in v])
             ) if isinstance(v, list) else v
         ) for k, v in params.items()])
 
