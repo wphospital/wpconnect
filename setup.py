@@ -30,6 +30,7 @@ setup(
         'psycopg2',
         'pyyaml',
         'plotly',
+        'redis',
         'requests',
         'scipy'
     ],
