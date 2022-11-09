@@ -23,7 +23,10 @@ class WPAPIResponse:
         if self.iserror:
             return self._error
         else:
-            return pickle.loads(self._data)
+            if isinstance(self._data, list):
+                return concat([pickle.loads(d) for d in self._data])
+            else:
+                return pickle.loads(self._data)
 
     def set_error(self, error):
         self.iserror = True
@@ -87,9 +90,7 @@ class WPAPIRequest:
             if len(self.last_key) == 1:
                 data = self.cache.get(self.prefix + self.last_key[0])
             else:
-                data = concat([
-                    self.cache.get(self.prefix + k) for k in self.last_key
-                ])
+                data = [self.cache.get(self.prefix + k) for k in self.last_key]
 
             resp.set_data(data=data, key=self.last_key)
         else:
