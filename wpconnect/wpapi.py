@@ -1,6 +1,7 @@
 from cachelib.redis import RedisCache
 import requests
 import pickle
+import warnings
 
 from pandas import concat
 
@@ -94,6 +95,8 @@ class WPAPIRequest:
 
             resp.set_data(data=data, key=self.last_key)
         else:
+            warnings.warn(res.text)
+
             resp.set_error(res.text)
 
         return resp
