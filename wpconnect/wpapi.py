@@ -2,6 +2,8 @@ from cachelib.redis import RedisCache
 import requests
 import pickle
 
+from pandas import concat
+
 from .settings import Settings
 
 settings = Settings()
@@ -82,7 +84,12 @@ class WPAPIRequest:
         if res.status_code == 200:
             self.last_key = res.json()
 
-            data = self.cache.get(self.prefix + self.last_key)
+            if len(self.last_key) == 1:
+                data = self.cache.get(self.prefix + self.last_key[0])
+            else:
+                data = concat([
+                    self.cache.get(self.prefix + k) for k in self.last_key
+                ])
 
             resp.set_data(data=data, key=self.last_key)
         else:
