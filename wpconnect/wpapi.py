@@ -16,10 +16,12 @@ class WPAPIResponse:
 
         self.iserror = False
 
-    def set_data(self, data, key, query):
+    def set_query(self, query):
+        self._query = query
+
+    def set_data(self, data, key):
         self._data = data
         self._key = key
-        self._query = query
 
     def get_data(self):
         if self.iserror:
@@ -87,16 +89,22 @@ class WPAPIRequest:
             request_res=res
         )
 
+        try:
+            self.last_query = res.json()['query']
+        except Exception as err:
+            self.last_query = None
+
+        resp.set_query(query=self.last_query)
+
         if res.status_code == 200:
             self.last_key = res.json()['data']
-            self.last_query = res.json()['query']
 
             if len(self.last_key) == 1:
                 data = self.cache.get(self.prefix + self.last_key[0])
             else:
                 data = [self.cache.get(self.prefix + k) for k in self.last_key]
 
-            resp.set_data(data=data, key=self.last_key, query=self.last_query)
+            resp.set_data(data=data, key=self.last_key)
         else:
             warnings.warn(res.text)
 
