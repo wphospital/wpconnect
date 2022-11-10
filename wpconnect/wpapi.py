@@ -106,8 +106,11 @@ class WPAPIRequest:
 
             resp.set_data(data=data, key=self.last_key)
         else:
-            warnings.warn(res.text)
-
-            resp.set_error(res.text)
+            try:
+                warnings.warn(res.json()['data'])
+                resp.set_error(res.json()['data'])
+            except Exception as err:
+                warnings.warn(res.text)
+                resp.set_error(res.text)
 
         return resp
