@@ -28,9 +28,13 @@ class WPAPIResponse:
             return self._error
         else:
             if isinstance(self._data, list):
-                return concat([pickle.loads(d) for d in self._data])
+                df = concat([pickle.loads(d) for d in self._data])
             else:
-                return pickle.loads(self._data)
+                df = pickle.loads(self._data)
+
+        df.__cached__ = self.cached
+
+        return df
 
     def set_error(self, error):
         self.iserror = True
