@@ -3,11 +3,28 @@ import requests
 import pickle
 import warnings
 
-from pandas import concat
+import pandas as pd
 
 from .settings import Settings
 
 settings = Settings()
+
+def get_precache_list():
+    """Get the current list of precache configs from WPAPI
+
+    Returns
+    -------
+    pandas.DataFrame
+        A dataframe listing the current precache configs
+    """
+
+    res = requests.get(settings.WPAPI + 'precache_list')
+
+    if res.status_code == 200:
+        return pd.DataFrame(res.json())
+    else:
+        return res.text
+
 
 class WPAPIResponse:
     def __init__(self, **kwargs):
@@ -28,7 +45,7 @@ class WPAPIResponse:
             return self._error
         else:
             if isinstance(self._data, list):
-                df = concat([pickle.loads(d) for d in self._data])
+                df = pd.concat([pickle.loads(d) for d in self._data])
             else:
                 df = pickle.loads(self._data)
 
