@@ -2,6 +2,7 @@ import pandas as pd
 import os
 from pyodbc import Error, ProgrammingError, DatabaseError
 from sqlalchemy.exc import ResourceClosedError
+from sqlalchemy import text
 from .connect import Connect
 from .settings import Settings
 import warnings
@@ -193,7 +194,7 @@ class Query:
                 return
             elif return_type == 'DataFrame':
                 try:
-                    db_res = pd.read_sql(query, self.conn, params=params, chunksize=chunksize)
+                    db_res = pd.read_sql(text(query), self.conn, params=params, chunksize=chunksize)
 
                     res = pd.concat([r for r in db_res]) if chunksize else db_res
 
@@ -215,13 +216,13 @@ class Query:
             else:
                 try:
                     with self.conn.cursor() as cursor:
-                        qr = cursor.execute(query, params=params)
+                        qr = cursor.execute(text(query), params=params)
                         res = qr.fetchall()
                 except pd.io.sql.DatabaseError as err:
                     warnings.warn(str(err), UserWarning)
                     return
                 except AttributeError as err:
-                    qr = self.conn.execute(query)
+                    qr = self.conn.execute(text(query))
                     res = qr.fetchall()
 
             self.most_recent_query = query
