@@ -1,4 +1,5 @@
 import pandas as pd
+from pandas.api.types import is_datetime64_any_dtype as is_datetime
 import os
 from pyodbc import Error, ProgrammingError, DatabaseError
 from sqlalchemy.exc import ResourceClosedError
@@ -170,6 +171,17 @@ class Query:
 
         return query
 
+    @staticmethod
+    def _replace_dates(
+        df : pd.DataFrame,
+        dtypes : pd.DataFrame
+    ):
+        for c in dtypes:
+            if any([is_datetime(r) for r in dtypes[c]]):
+                df[c] = pd.to_datetime(df[c])
+
+        return df
+
     # TODO: PARAMS WILL NOT WORK WITH SQLALCHEMY/ORACLE
     def execute_query(
         self,
@@ -196,7 +208,22 @@ class Query:
                 try:
                     db_res = pd.read_sql(text(query), self.conn, params=params, chunksize=chunksize)
 
-                    res = pd.concat([r for r in db_res]) if chunksize else db_res
+                    if chunksize:
+                        dtypes = []
+                        frames = []
+                        for chunk in db_res:
+                            dtypes.append(chunk.dtypes)
+                            frames.append(chunk)
+                            
+                        dtypes = pd.DataFrame(dtypes)
+                        res = self._replace_dates(
+                            pd.concat(frames),
+                            dtypes
+                        )
+
+                        del dtypes
+                    else:
+                        res = db_res
 
                 except pd.io.sql.DatabaseError as err:
                     warnings.warn(str(err), UserWarning)
