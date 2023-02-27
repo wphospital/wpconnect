@@ -295,7 +295,7 @@ class Query:
         df,
         **kwargs
     ):
-        df.to_sql(
+        return df.to_sql(
             con=self.conn,
             **kwargs
         )
