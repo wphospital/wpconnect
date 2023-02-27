@@ -295,7 +295,14 @@ class Query:
         df,
         **kwargs
     ):
+        try:
+            conn = self.connection.engine
+        except AttributeError as err:
+            conn = self.conn
+
+            print(str(err))
+
         return df.to_sql(
-            con=self.conn,
+            con=conn,
             **kwargs
         )
