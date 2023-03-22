@@ -59,10 +59,12 @@ class WPAPIResponse:
         self._error = error
 
 class WPAPIRequest:
-    def __init__(self, password, prefix='flask_cache_'):
+    def __init__(self, password, prefix='flask_cache_', endpoint='repo_query'):
         self.cache = self.init_redis(password)
 
         self.prefix = prefix
+
+        self.endpoint = endpoint
 
     def init_redis(self, password):
         return RedisCache(
@@ -80,13 +82,15 @@ class WPAPIRequest:
             ) if isinstance(v, list) else v
         ) for k, v in params.items()])
 
-    def get(self, query_fn, query_params : dict = None, **kwargs):
+    def get(self, query_fn : str = None, query_params : dict = None, **kwargs):
         self.last_query_fn = query_fn
         self.last_params = kwargs
 
+        default_dict = {'query_fn': query_fn} if query_fn else {}
+
         send_params = {
+            **default_dict,
             **{
-                'query_fn': query_fn,
                 'return_cache_key': True,
                 'return_query': True
             },
@@ -100,7 +104,7 @@ class WPAPIRequest:
             }
 
         res = requests.get(
-            settings.WPAPI + 'repo_query',
+            settings.WPAPI + self.endpoint,
             params=send_params
         )
 
