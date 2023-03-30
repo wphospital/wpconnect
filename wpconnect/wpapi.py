@@ -82,7 +82,13 @@ class WPAPIRequest:
             ) if isinstance(v, list) else v
         ) for k, v in params.items()])
 
-    def get(self, query_fn : str = None, query_params : dict = None, **kwargs):
+    def get(
+        self,
+        query_fn : str = None,
+        query_params : dict = None,
+        headers : dict = None,
+        **kwargs
+    ):
         self.last_query_fn = query_fn
         self.last_params = kwargs
 
@@ -105,7 +111,8 @@ class WPAPIRequest:
 
         res = requests.get(
             settings.WPAPI + self.endpoint,
-            params=send_params
+            params=send_params,
+            headers=headers
         )
 
         resp = WPAPIResponse(
