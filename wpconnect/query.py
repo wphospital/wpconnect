@@ -214,14 +214,19 @@ class Query:
                         for chunk in db_res:
                             dtypes.append(chunk.dtypes)
                             frames.append(chunk)
-                            
-                        dtypes = pd.DataFrame(dtypes)
-                        res = self._replace_dates(
-                            pd.concat(frames),
-                            dtypes
-                        )
 
-                        del dtypes
+                        try:
+                            dtypes = pd.DataFrame(dtypes)
+                            res = self._replace_dates(
+                                pd.concat(frames),
+                                dtypes
+                            )
+
+                            del dtypes
+                        except Exception as err:
+                            res = pd.concat(frames)
+
+                            warnings.warn('Could not fix dates (likely due to duplicated columns in the original query)')
                     else:
                         res = db_res
 
