@@ -111,7 +111,7 @@ class WPAPIRequest:
                 **{'query_params': self.package_params(query_params)}
             }
 
-        basic = HTTPBasicAuth(*auth) if auth else None
+        basic = None if auth is None else HTTPBasicAuth(*auth)
 
         res = requests.get(
             settings.WPAPI + self.endpoint,
