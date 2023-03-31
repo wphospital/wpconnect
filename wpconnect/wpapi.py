@@ -1,5 +1,6 @@
 from cachelib.redis import RedisCache
 import requests
+from requests.auth import HTTPBasicAuth
 import pickle
 import warnings
 
@@ -87,6 +88,7 @@ class WPAPIRequest:
         query_fn : str = None,
         query_params : dict = None,
         headers : dict = None,
+        auth : tuple = None,
         **kwargs
     ):
         self.last_query_fn = query_fn
@@ -109,10 +111,13 @@ class WPAPIRequest:
                 **{'query_params': self.package_params(query_params)}
             }
 
+        basic = HTTPBasicAuth(*auth) if auth else None
+
         res = requests.get(
             settings.WPAPI + self.endpoint,
             params=send_params,
-            headers=headers
+            headers=headers,
+            auth=basic
         )
 
         resp = WPAPIResponse(
