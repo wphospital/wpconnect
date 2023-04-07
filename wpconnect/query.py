@@ -26,9 +26,10 @@ class Query:
         port=None,
         username=None,
         password=None,
-        repo=None
+        repo=None,
+        trusted_connection=True,
     ):
-        self.connection = Connect(connection_type, environ, server, database, port, username, password)
+        self.connection = Connect(connection_type, environ, server, database, port, username, password, trusted_connection)
         self.conn = self.connection.conn
         self.query_libs = ['.']
 
