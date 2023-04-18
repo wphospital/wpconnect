@@ -1,6 +1,6 @@
 import os
 import psycopg2
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 import pandas as pd
 import numpy as np
 import yaml
@@ -69,8 +69,8 @@ class RPMDB:
             engine = create_engine('postgresql+psycopg2://', creator=self._connector)
 
             dat = pd.read_sql(
-                    sql = query,
-                    con = engine,
+                    sql = text(query),
+                    con = engine.connect(),
                     parse_dates = [d for d in self.date_cols if d in query]
                 )
 
