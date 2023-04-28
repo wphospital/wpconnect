@@ -96,7 +96,7 @@ class Connect:
                 f'//{self.username}:{safe_password}'
                 f'@{self.server}:{self.port}/'
                 f'{self.database}'
-                f'?{driver}'
+                f'?driver={driver}'
             )
 
     def create_connection(self):
