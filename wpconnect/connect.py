@@ -89,17 +89,14 @@ class Connect:
         else:
             driver = '{ODBC Driver 17 for SQL Server}'
 
-            if self.trusted_connection:
-                auth_str = 'Trusted_Connection=yes;'
-            else:
-                auth_str = f'UID={self.username};PWD={safe_password};'
+            trusted = 'yes' if self.trusted_connection else 'no'
 
             self.connection_string = (
-                f'Driver={driver};'
-                f'Server={self.server};'
-                f'Database={self.database};'
-                f'{auth_str}'
-                'MARS_Connection=yes;'
+                f'mssql+pyodbc:'
+                f'//{self.username}:{safe_password}'
+                f'@{self.server}:{self.port}/'
+                f'{self.database}'
+                f'?trusted_connection={trusted}'
             )
 
     def create_connection(self):
@@ -124,7 +121,8 @@ class Connect:
                 self.engine = sa.create_engine(self.connection_string)
                 connection = self.engine.connect()
             else:
-                connection = pyodbc.connect(self.connection_string)
+                connection = sa.create_engine(self.connection_string)
+                connection = self.engine.connect()
         except pyodbc.Error as err:
             print(f'Could not connect!: {err}')
 
