@@ -121,7 +121,11 @@ class Connect:
                 connection = pyodbc.connect(self.connection_string)
         except pyodbc.Error as err:
             print(f'Could not connect!: {err}')
+
+            connection = None
         except Exception as err:
             print(f'Could not connect!: {err}')
+
+            connection = None
 
         return connection
