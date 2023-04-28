@@ -87,7 +87,7 @@ class Connect:
                 f'?service_name={self.database}'
             )
         else:
-            driver = '{ODBC Driver 17 for SQL Server}'
+            driver = 'ODBC Driver 17 for SQL Server'.replace(' ', '+')
 
             trusted = 'yes' if self.trusted_connection else 'no'
 
@@ -96,7 +96,7 @@ class Connect:
                 f'//{self.username}:{safe_password}'
                 f'@{self.server}:{self.port}/'
                 f'{self.database}'
-                f'?trusted_connection={trusted}'
+                f'?{driver}'
             )
 
     def create_connection(self):
