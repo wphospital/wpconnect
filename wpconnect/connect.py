@@ -121,7 +121,7 @@ class Connect:
                 self.engine = sa.create_engine(self.connection_string)
                 connection = self.engine.connect()
             else:
-                connection = sa.create_engine(self.connection_string)
+                self.engine = sa.create_engine(self.connection_string)
                 connection = self.engine.connect()
         except pyodbc.Error as err:
             print(f'Could not connect!: {err}')
