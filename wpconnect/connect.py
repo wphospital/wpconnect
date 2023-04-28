@@ -19,6 +19,7 @@ class Connect:
         username=None,
         password=None,
         trusted_connection=True,
+        make_password_safe=True
     ):
         self.trusted_connection = trusted_connection
 
@@ -60,6 +61,8 @@ class Connect:
         self.username = username
         self.password = password
 
+        self.make_password_safe = make_password_safe
+
         # Create the connection
         self.conn = self.create_connection()
 
@@ -71,7 +74,10 @@ class Connect:
 
     def set_connection_string(self):
         if self.password:
-            safe_password = quote_plus(self.password)
+            if self.make_password_safe:
+                safe_password = quote_plus(self.password)
+            else:
+                safe_password=self.password
 
         if self.server in [settings.EDW_SERVER, settings.EDW_SERVER_PROD]:
             self.connection_string = (
