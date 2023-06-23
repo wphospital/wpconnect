@@ -26,6 +26,7 @@ setup(
         'pandas',
         'cx_Oracle',
         'sqlalchemy',
+        'neo4j',
         'pandas',
         'PyGithub',
         'psycopg2',
