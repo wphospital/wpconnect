@@ -171,6 +171,29 @@ class GraphSchema:
         if initialize_schema:
             self.set_schema()
 
+    @staticmethod
+    def _match_pattern_exact(str_val, pat):
+        if isinstance(str_val, list):
+            return pat in str_val, pat
+        elif isinstance(str_val, str):
+            return pat == str_val, pat
+        else:
+            return False
+
+    @staticmethod
+    def _match_pattern_regex(str_val, pat, flags=0):
+        pat = re.compile(pat, flags) # TODO: handle malformed pattern errors
+
+        if isinstance(str_val, list):
+            match_res = [re.search(pat, s) for s in str_val]
+            matches = [res.group(0) for res in match_res if res is not None]
+
+            return any([b is not None for b in match_res]), matches
+        elif isinstance(str_val, str):
+            return re.search(pat, str_val) is not None, re.findall(pat, str_val)
+        else:
+            return False
+
     def _set_node_counts(self):
         node_cypher = '''
             //Node Counts
@@ -196,6 +219,19 @@ class GraphSchema:
 
         self.node_props = self.clinical_graph.run_cypher(prop_cypher).to_pandas(index_cols='node_label')
 
+    def _set_edge_counts(self):
+        edge_cypher = '''
+            //Edge Counts
+            //Edge Counts
+            MATCH (n1) -[e]-> (n2)
+            WITH LABELS(n1) AS node1_labels, LABELS(n2) AS node2_labels, TYPE(e) AS edge_type, COUNT(e) AS edge_count
+            UNWIND node1_labels AS node1_label
+            UNWIND node2_labels AS node2_label
+            RETURN node1_label, node2_label, edge_type, edge_count
+            ORDER BY edge_count DESC
+        '''
+
+        self.edges = self.clinical_graph.run_cypher(edge_cypher).to_pandas()
 
     def set_schema(
         self,
@@ -211,6 +247,8 @@ class GraphSchema:
 
         self._set_node_props()
 
+        self._set_edge_counts()
+
         if self.verbose:
             elapsed_time = time.time() - start
 
@@ -219,6 +257,43 @@ class GraphSchema:
             logger.info(f'Schema scan completed in {elapsed}')
 
         self.schema_set = True
+
+    def get_nodes_with_prop(
+        self,
+        prop : str,
+        regex : bool = False
+    ):
+        if not self.schema_set:
+            self.set_schema()
+
+        match_func = self._match_pattern_regex if regex else self._match_pattern_exact
+
+        matches = self.node_props['node_props'].apply(match_func, args=(prop,))
+
+        match_inds = [r[0] for r in matches]
+        match_vals = [r[1] for r in matches]
+
+        if len(match_vals) > 0 and isinstance(match_vals[0], list):
+            match_vals = list(chain(*match_vals))
+
+        return self.node_props[match_inds], list(set(match_vals))
+
+    def get_edges_from_nodes(
+        self,
+        node_labels : list
+    ):
+        if not self.schema_set:
+            self.set_schema()
+
+        nodes = self.nodes.query('node_label.isin(@node_labels)')
+
+        return nodes\
+            .merge(
+                self.edges,
+                how='left',
+                left_on=['node_label'],
+                right_on=['node1_label']
+            )
 
 
 class ClinicalGraph:
@@ -256,7 +331,7 @@ class ClinicalGraph:
 
     def get_all_nodes(
         self,
-        tags : str = None
+        tags : list = None
     ):
         if tags:
             tag_str = ':' + ('|'.join(tags) if isinstance(tags, list) else tags)
@@ -265,45 +340,25 @@ class ClinicalGraph:
 
         return self.run_cypher(f'MATCH (n{tag_str}) RETURN n')
 
-    @staticmethod
-    def _match_pattern_exact(str_val, pat):
-        if isinstance(str_val, list):
-            return pat in str_val, pat
-        elif isinstance(str_val, str):
-            return pat == str_val, pat
-        else:
-            return False
-
-    @staticmethod
-    def _match_pattern_regex(str_val, pat, flags=0):
-        pat = re.compile(pat, flags) # TODO: handle malformed pattern errors
-
-        if isinstance(str_val, list):
-            match_res = [re.search(pat, s) for s in str_val]
-            matches = [res.group(0) for res in match_res if res is not None]
-
-            return any([b is not None for b in match_res]), matches
-        elif isinstance(str_val, str):
-            return re.search(pat, str_val) is not None, re.findall(pat, str_val)
-        else:
-            return False
-
-    def get_nodes_with_prop(
+    def get_all_edges(
         self,
-        prop : str,
-        regex : bool = False
+        edge_type : str = None,
+        node1_tags : list = None,
+        node2_tags : list = None
     ):
-        if not self.schema.schema_set:
-            self.schema.set_schema()
+        tag_strs = {
+            f'node{_ + 1}_tags': (':' + ('|'.join(t) if isinstance(t, list) else t)) if t else ''
+            for _, t in enumerate([node1_tags, node2_tags])
+        }
 
-        match_func = self._match_pattern_regex if regex else self._match_pattern_exact
+        edge_type_str = f':{edge_type}' if edge_type is not None else ''
 
-        matches = self.schema.node_props['node_props'].apply(match_func, args=(prop,))
-
-        match_inds = [r[0] for r in matches]
-        match_vals = [r[1] for r in matches]
-
-        if len(match_vals) > 0 and isinstance(match_vals[0], list):
-            match_vals = list(chain(*match_vals))
-
-        return self.schema.node_props[match_inds], list(set(match_vals))
+        return self.run_cypher(
+            '''
+                MATCH (n1{node1_tags}) -[e{edge_type_str}]-> (n2{node2_tags})
+                WITH DISTINCT LABELS(n1) AS node1_labels, n1.db_id AS db_id, LABELS(n2) AS node2_labels, n2.name AS node2_name, TYPE(e) AS edge_type, e.weight AS edge_weight
+                UNWIND node1_labels AS node1_label
+                UNWIND node2_labels AS node2_label
+                RETURN node1_label, db_id, node2_label, node2_name, edge_type, edge_weight
+            '''.format(edge_type_str=edge_type_str, **tag_strs)
+        )
