@@ -367,7 +367,7 @@ class RPMDB:
             out_dict = dfs
 
             for df in dfs.values():
-                tz_awares = [_ for _, d in df.dtypes.iteritems() if type(d) == pd.DatetimeTZDtype]
+                tz_awares = [_ for _, d in df.dtypes.items() if type(d) == pd.DatetimeTZDtype]
 
                 for t in tz_awares:
                     df[t] = df[t].dt.tz_convert(None)
