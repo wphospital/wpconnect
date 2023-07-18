@@ -362,20 +362,17 @@ class RPMDB:
             for k in dfs.keys():
                 dfs[k].to_csv(fps[k], index=False)
         elif re.search('xlsx?', format):
-            ew = pd.ExcelWriter(fps)
+            with pd.ExcelWriter(fps) as ew:
+                out_dict = dfs
 
-            out_dict = dfs
+                for df in dfs.values():
+                    tz_awares = [_ for _, d in df.dtypes.items() if type(d) == pd.DatetimeTZDtype]
 
-            for df in dfs.values():
-                tz_awares = [_ for _, d in df.dtypes.iteritems() if type(d) == pd.DatetimeTZDtype]
+                    for t in tz_awares:
+                        df[t] = df[t].dt.tz_convert(None)
 
-                for t in tz_awares:
-                    df[t] = df[t].dt.tz_convert(None)
-
-            for k, d in out_dict.items():
-                d.to_excel(ew, sheet_name=k, startrow=0, index=False, header=True)
-
-            ew.save()
+                for k, d in out_dict.items():
+                    d.to_excel(ew, sheet_name=k, startrow=0, index=False, header=True)
         else:
             raise Exception('Unsupported format')
 
