@@ -327,7 +327,7 @@ class ClinicalGraph:
     def normalize_value(inputs):
         val = inputs[-1]
 
-        if isinstance(val, str):
+        if isinstance(val, str) and 'datetime(' not in val:
             inputs = list(inputs)
 
             inputs[-1] = f'"{val}"' if not re.search('^(?<=").+(?=")$', val) else val
