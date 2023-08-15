@@ -46,8 +46,14 @@ class GraphResult:
         Converts the graph records to a dataframe
     """
 
-    def __init__(self, records : list = []):
+    def __init__(
+        self,
+        records : list = [],
+        cypher_string : str = None
+    ):
         self.records = records
+
+        self.query = cypher_string
 
     @staticmethod
     def _cleanup_keys(df : pd.DataFrame):
@@ -318,6 +324,19 @@ class ClinicalGraph:
         self.driver.close()
 
     @staticmethod
+    def normalize_value(inputs):
+        val = inputs[-1]
+
+        if isinstance(val, str):
+            inputs = list(inputs)
+
+            inputs[-1] = f'"{val}"' if not re.search('^(?<=").+(?=")$', val) else val
+
+            return tuple(inputs)
+        
+        return inputs
+
+    @staticmethod
     def _run_cypher(tx, cypher_string):
         result = tx.run(cypher_string)
         
@@ -327,12 +346,13 @@ class ClinicalGraph:
         with self.driver.session() as session:
             result = session.execute_write(self._run_cypher, cypher_string)
             
-        return GraphResult(result)
+        return GraphResult(result, cypher_string)
 
     def get_all_nodes(
         self,
         tags : list = None,
-        node_props : list = None
+        node_props : list = None,
+        filter_list : list = None
     ):
         if tags:
             tag_str = ':' + ('|'.join(tags) if isinstance(tags, list) else tags)
@@ -353,7 +373,27 @@ class ClinicalGraph:
                     ]
                 )
 
-        return self.run_cypher(f'MATCH (n{tag_str}) RETURN {return_str}')
+        filter_str = 'WHERE 1=1'
+        if filter_list:
+            filter_addon = ' AND '.join(
+                [
+                    'n.{} {} {}'.format(*self.normalize_value(f))
+                    for f in filter_list
+                ]
+            )
+
+            filter_str = f'''
+                {filter_str}
+                AND {filter_addon}
+            '''
+
+        query = f'''
+            MATCH (n{tag_str})
+            {filter_str}
+            RETURN {return_str}
+        '''
+
+        return self.run_cypher(query)
 
     def get_all_edges(
         self,
