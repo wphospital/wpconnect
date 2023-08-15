@@ -331,14 +331,29 @@ class ClinicalGraph:
 
     def get_all_nodes(
         self,
-        tags : list = None
+        tags : list = None,
+        node_props : list = None
     ):
         if tags:
             tag_str = ':' + ('|'.join(tags) if isinstance(tags, list) else tags)
         else:
             tag_str = ''
 
-        return self.run_cypher(f'MATCH (n{tag_str}) RETURN n')
+        return_str = 'n'
+        if node_props:
+            if isinstance(node_props, str):
+                return_str = f'n.{node_props} as {node_props}'
+            elif isinstance(node_props, (list, tuple)):
+                return_str = ', '.join(
+                    [
+                        'n.{} as {}'.format(
+                            *(n if isinstance(n, (list, tuple)) else (n, n))
+                        )
+                        for n in node_props
+                    ]
+                )
+
+        return self.run_cypher(f'MATCH (n{tag_str}) RETURN {return_str}')
 
     def get_all_edges(
         self,
