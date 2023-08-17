@@ -3,7 +3,7 @@ from neo4j import GraphDatabase
 import pandas as pd
 import numpy as np
 
-from pandas.api.types import is_any_real_numeric_dtype as is_numeric, is_object_dtype
+from pandas.api.types import is_any_real_numeric_dtype as is_numeric, is_object_dtype, is_datetime64_any_dtype as is_datetime
 
 from itertools import chain
 from collections import Counter
@@ -14,7 +14,10 @@ import pytz
 
 import logging
 
+import warnings
+
 import re
+import json
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -348,11 +351,13 @@ class ClinicalGraph:
             
         return GraphResult(result, cypher_string)
 
+    # Node retrieval methods
+
     def _format_node_query(
         self,
         node_tag : str = None,
-        return_attrs : tuple = 'db_id',
-        prop_filter : tuple = None,
+        return_attrs : dict = 'db_id',
+        prop_filter : dict = None,
         filter_list : list = None,
         node_num : int = 0
     ):
@@ -361,15 +366,28 @@ class ClinicalGraph:
         else:
             node_tag = ''
 
-        if prop_filter:
-            prop_filter_str = ' ' + '{' + '{}: "{}"'.format(prop_filter[0], prop_filter[1]) + '}'
+        if prop_filter is not None:
+            if len(prop_filter.keys()) > 1:
+                warnings.warn('Cannot use more than one property filter. Using first key only.')
+
+            prop = list(prop_filter.keys())[0]
+            prop_value = prop_filter[prop]
+
+            prop_filter_str = ' {' + f'{prop}: "{prop_value}"' + '}'
         else:
             prop_filter_str = ''
 
         return_str = f'p{node_num}'
-        if return_attrs:
+        if return_attrs is not None:
             if isinstance(return_attrs, str):
                 return_str = f'p{node_num}.{return_attrs} as {return_attrs}'
+            elif isinstance(return_attrs, dict):
+                return_str = ', '.join(
+                    [
+                        f'p{node_num}.{k} as {v}'.format()
+                        for k, v in return_attrs.items()
+                    ]
+                )
             elif isinstance(return_attrs, (list, tuple)):
                 return_str = ', '.join(
                     [
@@ -403,8 +421,8 @@ class ClinicalGraph:
     def get_nodes(
         self,
         node_tag : list = None,
-        node_props : list = None,
-        prop_filter : tuple = None,
+        node_props : dict = None,
+        prop_filter : dict = None,
         filter_list : list = None,
         node_num : int = 0,
         **kwargs
@@ -426,6 +444,8 @@ class ClinicalGraph:
         result = self.run_cypher(query_str, **kwargs)
             
         return result
+
+    # Edge retrieval methods
 
     @staticmethod
     def _format_edge_query(
@@ -518,3 +538,83 @@ class ClinicalGraph:
         )
         
         return self.run_cypher(query_str, **kwargs)
+
+    # Node creation methods
+
+    @staticmethod
+    def _normalize_value(value):
+        if isinstance(value, str):
+            return value.replace('"', '')
+        
+        return value
+
+    def _normalize_attrs(self, attrs, string=True):
+        attrs = {
+            k: (
+                'datetime({})'.format(self._normalize_datetime(v))
+                if (is_datetime(v) or isinstance(v, pd.Timestamp) or v is pd.NaT) and v != 'M'
+                else (self._normalize_value(v) if v is not None else 'null')
+            ) for k, v in attrs.items()
+        }
+        
+        return re.sub(
+            r'"(?=:)', '',
+            re.sub(r'(?<=, )"', '',
+                re.sub(r'(?<="\))"', '',
+                       re.sub(r'(?<=datetime\(null\))"', '',
+                        re.sub(r'"(?=datetime)', '',
+                            re.sub(r'\\"', '"',
+                                re.sub(r'(?<=[{])"', '', json.dumps(attrs))
+                              )
+                        )
+                    )
+                )
+            )
+        ) if string else attrs
+
+    def create_node(
+        self,
+        node_tag : str,
+        node_attrs : dict,
+        **kwargs
+    ):
+        query_str = '''
+            MERGE (n:{node_tag} {node_attrs})
+            RETURN n
+        '''.format(
+            node_tag=node_tag,
+            node_attrs=self._normalize_attrs(node_attrs)
+        )
+        
+        return self.run_cypher(query_str, **kwargs)
+
+    # Edge creation methods
+
+    def create_edge(
+        self,
+        node1 : dict,
+        node2 : dict,
+        edge_tag : str,
+        edge_attrs : dict,
+        **kwargs
+    ):
+        node1_attrs = {k: v for k, v in node1.items() if k != 'node_tag'}
+        node2_attrs = {k: v for k, v in node2.items() if k != 'node_tag'}
+        
+        query_str = '''
+            MATCH (n1:{node1_tag} {node1_attrs})
+            MATCH (n2:{node2_tag} {node2_attrs})
+            MERGE (n1) -[e:{edge_tag} {edge_attrs}]-> (n2)
+            RETURN n1, n2, e
+        '''.format(
+            node1_tag=node1['node_tag'],
+            node1_attrs=self._normalize_attrs(node1_attrs),
+            node2_tag=node2['node_tag'],
+            node2_attrs=self._normalize_attrs(node2_attrs),
+            edge_tag=edge_tag,
+            edge_attrs=self._normalize_attrs(edge_attrs)
+        )
+        
+        print(query_str)
+
+        # return return self.run_cypher(query_str, **kwargs)
