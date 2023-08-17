@@ -367,11 +367,11 @@ class ClinicalGraph:
             node_tag = ''
 
         if prop_filter is not None:
-            if len(prop_filter.keys()) > 1:
-                warnings.warn('Cannot use more than one property filter. Using first key only.')
-
             prop = list(prop_filter.keys())[0]
             prop_value = prop_filter[prop]
+            
+            if len(prop_filter.keys()) > 1:
+                warnings.warn(f'Cannot use more than one property filter. Using "{prop}" only.')
 
             prop_filter_str = ' {' + f'{prop}: "{prop_value}"' + '}'
         else:
@@ -400,13 +400,15 @@ class ClinicalGraph:
                 )
 
         filter_str = 'WHERE 1=1'
-        if filter_list:
-            filter_addon = ' AND '.join(
-                [
-                    'p{}.{} {} {}'.format(node_num, *self.normalize_value(f))
-                    for f in filter_list
-                ]
-            )
+        if filter_list is not None:
+            addon_list = []
+            for f in filter_list:
+                if len(f) == 3:
+                    addon_list.append('p{}.{} {} {}'.format(node_num, *self.normalize_value(f)))
+                elif len(f) == 2:
+                    addon_list.append('p{}.{} {}'.format(node_num, *f))
+
+            filter_addon = ' AND '.join(addon_list)
 
             filter_str = f'''
                 {filter_str}
@@ -598,8 +600,8 @@ class ClinicalGraph:
         edge_attrs : dict,
         **kwargs
     ):
-        node1_attrs = {k: v for k, v in node1.items() if k != 'node_tag'}
-        node2_attrs = {k: v for k, v in node2.items() if k != 'node_tag'}
+        node1_tag = node1.pop('node_tag')
+        node2_tag = node2.pop('node_tag')
         
         query_str = '''
             MATCH (n1:{node1_tag} {node1_attrs})
@@ -607,14 +609,12 @@ class ClinicalGraph:
             MERGE (n1) -[e:{edge_tag} {edge_attrs}]-> (n2)
             RETURN n1, n2, e
         '''.format(
-            node1_tag=node1['node_tag'],
-            node1_attrs=self._normalize_attrs(node1_attrs),
-            node2_tag=node2['node_tag'],
-            node2_attrs=self._normalize_attrs(node2_attrs),
+            node1_tag=node1_tag,
+            node1_attrs=self._normalize_attrs(node1),
+            node2_tag=node2_tag,
+            node2_attrs=self._normalize_attrs(node2),
             edge_tag=edge_tag,
             edge_attrs=self._normalize_attrs(edge_attrs)
         )
-        
-        print(query_str)
 
-        # return return self.run_cypher(query_str, **kwargs)
+        return self.run_cypher(query_str, **kwargs)
