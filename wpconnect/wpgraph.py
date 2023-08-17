@@ -123,6 +123,9 @@ class GraphResult:
                 rec_fr = pd.DataFrame()
                 for k in record_keys:
                     if k in keys_with_keys.keys():
+                        if r[k] is None:
+                            continue
+
                         for ik in r[k].keys():
                             val = r[k].get(ik)
                             
