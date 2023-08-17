@@ -348,28 +348,36 @@ class ClinicalGraph:
             
         return GraphResult(result, cypher_string)
 
-    def get_all_nodes(
+    def _format_node_query(
         self,
-        tags : list = None,
-        node_props : list = None,
-        filter_list : list = None
+        node_tag : str = None,
+        return_attrs : tuple = 'db_id',
+        prop_filter : tuple = None,
+        filter_list : list = None,
+        node_num : int = 0
     ):
-        if tags:
-            tag_str = ':' + ('|'.join(tags) if isinstance(tags, list) else tags)
+        if node_tag:
+            node_tag = ':' + ('|'.join(node_tag) if isinstance(node_tag, list) else node_tag)
         else:
-            tag_str = ''
+            node_tag = ''
 
-        return_str = 'n'
-        if node_props:
-            if isinstance(node_props, str):
-                return_str = f'n.{node_props} as {node_props}'
-            elif isinstance(node_props, (list, tuple)):
+        if prop_filter:
+            prop_filter_str = ' ' + '{' + '{}: "{}"'.format(prop_filter[0], prop_filter[1]) + '}'
+        else:
+            prop_filter_str = ''
+
+        return_str = f'p{node_num}'
+        if return_attrs:
+            if isinstance(return_attrs, str):
+                return_str = f'p{node_num}.{return_attrs} as {return_attrs}'
+            elif isinstance(return_attrs, (list, tuple)):
                 return_str = ', '.join(
                     [
-                        'n.{} as {}'.format(
+                        'p{}.{} as {}'.format(
+                            node_num,
                             *(n if isinstance(n, (list, tuple)) else (n, n))
                         )
-                        for n in node_props
+                        for n in return_attrs
                     ]
                 )
 
@@ -377,7 +385,7 @@ class ClinicalGraph:
         if filter_list:
             filter_addon = ' AND '.join(
                 [
-                    'n.{} {} {}'.format(*self.normalize_value(f))
+                    'p{}.{} {} {}'.format(node_num, *self.normalize_value(f))
                     for f in filter_list
                 ]
             )
@@ -387,33 +395,126 @@ class ClinicalGraph:
                 AND {filter_addon}
             '''
 
-        query = f'''
-            MATCH (n{tag_str})
+        if node_tag is not None:
+            return f'(p{node_num}{node_tag}{prop_filter_str})', filter_str, return_str
+        else:
+            return f'(p{node_num}{prop_filter_str})', filter_str, return_str
+
+    def get_nodes(
+        self,
+        node_tag : list = None,
+        node_props : list = None,
+        prop_filter : tuple = None,
+        filter_list : list = None,
+        node_num : int = 0,
+        **kwargs
+    ):
+        node_str, filter_str, select_str = self._format_node_query(
+            node_tag,
+            node_props,
+            prop_filter,
+            filter_list,
+            node_num
+        )
+
+        query_str = f'''
+            MATCH {node_str}
             {filter_str}
-            RETURN {return_str}
+            RETURN {select_str}
         '''
 
-        return self.run_cypher(query)
+        result = self.run_cypher(query_str, **kwargs)
+            
+        return result
 
-    def get_all_edges(
-        self,
-        edge_type : str = None,
-        node1_tags : list = None,
-        node2_tags : list = None
+    @staticmethod
+    def _format_edge_query(
+        edge_tag : str = None,
+        return_attrs : dict = 'weight',
+        edge_num : int = 0
     ):
-        tag_strs = {
-            f'node{_ + 1}_tags': (':' + ('|'.join(t) if isinstance(t, list) else t)) if t else ''
-            for _, t in enumerate([node1_tags, node2_tags])
-        }
+        if return_attrs:
+            if isinstance(return_attrs, list):
+                return_attrs = dict(zip(return_attrs, return_attrs))
+            elif isinstance(return_attrs, str):
+                return_attrs = {return_attrs: return_attrs}
 
-        edge_type_str = f':{edge_type}' if edge_type is not None else ''
+            select_str = ', '.join(f'e{edge_num}.{a} AS {v}' for a, v in return_attrs.items())
+        else:
+            select_str = f'e{edge_num}'
 
-        return self.run_cypher(
-            '''
-                MATCH (n1{node1_tags}) -[e{edge_type_str}]-> (n2{node2_tags})
-                WITH DISTINCT LABELS(n1) AS node1_labels, n1.db_id AS db_id, LABELS(n2) AS node2_labels, n2.name AS node2_name, TYPE(e) AS edge_type, e.weight AS edge_weight
-                UNWIND node1_labels AS node1_label
-                UNWIND node2_labels AS node2_label
-                RETURN node1_label, db_id, node2_label, node2_name, edge_type, edge_weight
-            '''.format(edge_type_str=edge_type_str, **tag_strs)
+        if edge_tag is not None:
+            return f'[e{edge_num}:{edge_tag}]', select_str
+        else:
+            return f'[e{edge_num}]', select_str
+
+    def get_edges(
+        self,
+        edge_tag : str = None,
+        edge_props : dict = 'weight',
+        node_tags : tuple = (None, None),
+        prop_filters: tuple = (None, None),
+        node_props : tuple = (None, None),
+        node_filter_lists : tuple = (None, None),
+        **kwargs
+    ):
+        return_nodes = any([r != None for r in node_props])
+
+        node_configs = []
+        for _, t in enumerate(node_tags):
+            node_configs.append(
+                self._format_node_query(
+                    node_tag=t,
+                    return_attrs=node_props[_],
+                    prop_filter=prop_filters[_],
+                    filter_list=node_filter_lists[_],
+                    node_num=_
+                )
+            )
+
+        node_addendum = ', ' + ', '.join(
+            [nc[2] for nc in node_configs]
+        ) if return_nodes else ''
+
+        edge_str, edge_return_str = self._format_edge_query(
+            edge_tag=edge_tag,
+            return_attrs=edge_props
         )
+
+        filters = [
+            (
+                nc[1].replace('WHERE 1=1', '')
+                if _ == 1 else nc[1]
+            ) for _, nc in enumerate(node_configs)
+        ]
+
+        joined_filters = ' AND '.join(
+            [
+                re.sub(
+                    ' {2,}',
+                    ' ',
+                    re.sub('\n', '', f)
+                ) for f in filters
+            ]
+        ) if filters[1] != '' else filters[0]
+
+        filter_addendum = re.sub(
+            'AND +AND',
+            'AND',
+            joined_filters
+        )
+
+        query_str = '''
+            MATCH {node_str1} -{edge_str}-> {node_str2}
+            {filter_str}
+            RETURN {edge_return_str}{node_return_str}
+        '''.format(
+            node_str1=node_configs[0][0],
+            edge_str=edge_str,
+            node_str2=node_configs[1][0],
+            filter_str=filter_addendum,
+            node_return_str=node_addendum,
+            edge_return_str=edge_return_str
+        )
+        
+        return self.run_cypher(query_str, **kwargs)
