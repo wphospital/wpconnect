@@ -307,6 +307,69 @@ class GraphSchema:
                 right_on=['node1_label']
             )
 
+    def get_prop_summary(
+        self,
+        prop : str,
+        regex : bool = False
+    ):
+        node_props = self.get_nodes_with_prop(
+            prop,
+            regex=regex
+        )[0]
+
+        unique_list = list(set(chain(*node_props.node_props.values.tolist())))
+
+        if regex:
+            prop_only = [
+                u for u in unique_list if re.search(prop, u)
+            ]
+        else:
+            prop_only = [
+                u for u in unique_list if u == prop
+            ]
+
+        prop_counts = {}
+        for e in prop_only:
+            query = f'''
+                MATCH (n)
+                WHERE n.{e} IS NOT NULL
+                RETURN LABELS(n) AS labels, COUNT(n) AS node_count
+            '''
+
+            prop_counts[e] = self.clinical_graph.run_cypher(query).to_pandas()
+            
+            total_node_count = self.clinical_graph.run_cypher('''
+                MATCH (n) RETURN COUNT(n) AS total_node_count
+                ''')\
+                .to_pandas().total_node_count.values[0]
+
+        joined_fr = pd.concat(
+            [
+                d.assign(prop=e)
+                if d.index.size > 0
+                else pd.DataFrame() for e, d in prop_counts.items()
+            ]
+        )
+
+        joined_fr['prop'] = pd.Categorical(joined_fr.prop)
+
+        joined_fr = joined_fr.set_index('prop')
+        
+        totals = joined_fr\
+            .groupby('prop')\
+            .agg(total_nodes=pd.NamedAgg('node_count', 'sum'))\
+            .to_dict()['total_nodes']
+
+        total_str = '\n'.join(
+            [
+                f'\t{t}: {c} ({c/total_node_count:.1%})'
+                for t, c in totals.items()
+            ]
+        )
+        
+        print(f'Props and total node counts\n{total_str}')
+            
+        return joined_fr
 
 class ClinicalGraph:
     def __init__(
@@ -547,6 +610,17 @@ class ClinicalGraph:
     # Node creation methods
 
     @staticmethod
+    def _normalize_datetime(datetime, is_local : bool = True):
+        if datetime is pd.NaT:
+            return 'null'
+        
+        tz = pytz.timezone('America/New_York') if is_local else pytz.UTC
+
+        datetime = datetime.tz_localize(tz, ambiguous=True)
+
+        return '"{}"'.format(datetime.isoformat())
+
+    @staticmethod
     def _normalize_value(value):
         if isinstance(value, str):
             return value.replace('"', '')
@@ -591,7 +665,9 @@ class ClinicalGraph:
             node_attrs=self._normalize_attrs(node_attrs)
         )
         
-        return self.run_cypher(query_str, **kwargs)
+        print(query_str)
+
+        # return self.run_cypher(query_str, **kwargs)
 
     # Edge creation methods
 
@@ -620,4 +696,13 @@ class ClinicalGraph:
             edge_attrs=self._normalize_attrs(edge_attrs)
         )
 
-        return self.run_cypher(query_str, **kwargs)
+        print(query_str)
+
+        # return self.run_cypher(query_str, **kwargs)
+
+    # Prop methods
+
+    def get_available_embeddings(
+        self
+    ):
+        return self.schema.get_prop_summary('embedding', regex=True)
