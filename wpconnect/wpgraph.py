@@ -614,9 +614,15 @@ class ClinicalGraph:
         if datetime is pd.NaT:
             return 'null'
         
-        tz = pytz.timezone('America/New_York') if is_local else pytz.UTC
+        try:
+            if datetime.tzinfo is None:
+                tz = pytz.timezone('America/New_York') if is_local else pytz.UTC
 
-        datetime = datetime.tz_localize(tz, ambiguous=True)
+                datetime = datetime.tz_localize(tz, ambiguous=True)
+        except Exception as err:
+            tz = pytz.timezone('America/New_York') if is_local else pytz.UTC
+
+            datetime = datetime.tz_localize(tz, ambiguous=True)
 
         return '"{}"'.format(datetime.isoformat())
 
@@ -664,10 +670,8 @@ class ClinicalGraph:
             node_tag=node_tag,
             node_attrs=self._normalize_attrs(node_attrs)
         )
-        
-        print(query_str)
 
-        # return self.run_cypher(query_str, **kwargs)
+        return self.run_cypher(query_str, **kwargs)
 
     # Edge creation methods
 
@@ -696,9 +700,7 @@ class ClinicalGraph:
             edge_attrs=self._normalize_attrs(edge_attrs)
         )
 
-        print(query_str)
-
-        # return self.run_cypher(query_str, **kwargs)
+        return self.run_cypher(query_str, **kwargs)
 
     # Prop methods
 
