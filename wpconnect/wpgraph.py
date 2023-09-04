@@ -439,7 +439,10 @@ class ClinicalGraph:
             if len(prop_filter.keys()) > 1:
                 warnings.warn(f'Cannot use more than one property filter. Using "{prop}" only.')
 
-            prop_filter_str = ' {' + f'{prop}: "{prop_value}"' + '}'
+            if isinstance(prop_value, (int, float)):
+                prop_filter_str = ' {' + f'{prop}: {prop_value}' + '}'
+            else:
+                prop_filter_str = ' {' + f'{prop}: "{prop_value}"' + '}'
         else:
             prop_filter_str = ''
 
