@@ -6,7 +6,7 @@ def readme():
 
 setup(
     name='wpconnect',
-    version='3.0',
+    version='3.1',
     description='Internal package for convenience functions in data warehouse',
     long_description=readme(),
     classifiers=[
