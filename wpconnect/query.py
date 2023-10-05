@@ -13,10 +13,18 @@ import re
 import requests
 import pkgutil
 
+import time
+import datetime as dt
+import pytz
+
+import base64
 
 settings = Settings()
 
 class Query:
+    g = None
+    r = None
+
     def __init__(
         self,
         connection_type=None,
@@ -61,13 +69,12 @@ class Query:
 
     def _get_dirs_at_level(
         self,
-        r,
         d
     ):
         level_dirs = []
 
         # Identify directories at this level
-        for cf in r.get_contents(d):
+        for cf in self.r.get_contents(d):
             path = cf.path
 
             if cf.type == 'dir':
@@ -75,24 +82,7 @@ class Query:
 
         return level_dirs
 
-    def configure_repo(
-        self
-    ):
-        needed_keys = ['access_token', 'username', 'repo']
-
-        missing_keys = [k for k in needed_keys if k not in self.repo.keys()]
-
-        joined_missing = ', '.join(missing_keys)
-
-        if len(missing_keys) > 0:
-            raise UserError(f'Missing keys in query argument: {joined_missing}')
-
-        repo_name = '%s/%s' % (self.repo['username'], self.repo['repo'])
-
-        g = Github(self.repo['access_token'])
-
-        r = g.get_repo(repo_name)
-
+    def get_cfs(self):
         # Get all directories in the repo
         dirs = ['.']
         scanned_dirs = []
@@ -101,7 +91,7 @@ class Query:
 
         while len(needs_scanning) > 0:
             for d in dirs:
-                level_dirs = self._get_dirs_at_level(r, d)
+                level_dirs = self._get_dirs_at_level(d)
 
                 dirs += level_dirs
 
@@ -113,7 +103,7 @@ class Query:
         cfs = {}
 
         for d in dirs:
-            dir_contents = r.get_contents(d)
+            dir_contents = self.r.get_contents(d)
 
             for q in dir_contents:
                 if '.sql' in q.path:
@@ -130,7 +120,7 @@ class Query:
                     if name in cfs.keys():
                         self.repo_duplicates.append(name)
 
-                    cfs[name] = q.download_url
+                    cfs[name] = q.sha
 
         if len(self.repo_duplicates) > 0:
             joined_dups = ', '.join(self.repo_duplicates)
@@ -139,18 +129,37 @@ class Query:
 
         self.cfs = cfs
 
+    def configure_repo(
+        self
+    ):
+        needed_keys = ['access_token', 'username', 'repo']
+
+        missing_keys = [k for k in needed_keys if k not in self.repo.keys()]
+
+        joined_missing = ', '.join(missing_keys)
+
+        if len(missing_keys) > 0:
+            raise UserError(f'Missing keys in query argument: {joined_missing}')
+
+        repo_name = '%s/%s' % (self.repo['username'], self.repo['repo'])
+
+        self.g = Github(self.repo['access_token'])
+
+        self.r = self.g.get_repo(repo_name)
+
+        self.get_cfs()
+
     def _get_repo_query(
         self,
         filename
     ):
-        headers = {'Authorization': 'token %s' % self.repo['access_token']}
+        res = self.r.get_git_blob(self.cfs[filename])
 
-        res = requests.get(self.cfs[filename], headers=headers)
+        raw_data = res.raw_data['content']
 
-        if res.status_code != 200:
-            res.raise_for_status()
+        decoded = base64.b64decode(raw_data).decode()
 
-        return res.text
+        return decoded
 
     def import_sql(
         self,
