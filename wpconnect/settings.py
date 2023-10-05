@@ -25,3 +25,5 @@ class Settings:
     WPAPI = 'http://10.16.8.21:1597/api/'
     WPAPI_REDIS_HOST = '10.16.8.21'
     WPAPI_REDIS_PORT = 6380
+
+    GITHUB_RATE_WARNING_THRESHOLD = 0.96

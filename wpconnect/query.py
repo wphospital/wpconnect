@@ -21,9 +21,54 @@ import base64
 
 settings = Settings()
 
+def get_rate_limits(g):
+    rate_remaining, rate_limit = g.rate_limiting
+
+    reset_time = g.rate_limiting_resettime
+
+    return rate_remaining, rate_limit, reset_time
+
+def rate_aware(func):
+    """Decorator for rate-aware Github API calls
+    """
+    def wrapper(self, *args, **kwargs):
+        rate_remaining, rate_limit, reset_time = get_rate_limits(self.g)
+
+        if rate_remaining < 1:
+            local_reset = dt.datetime\
+                .fromtimestamp(reset_time)\
+                .astimezone(
+                    pytz.timezone('America/New_York')
+                )
+
+            local_now = dt.datetime\
+                .now(pytz.UTC)\
+                .astimezone(
+                    pytz.timezone('America/New_York')
+                )
+
+            wait_time = (local_reset - local_now).total_seconds()
+
+            if wait_time > 0:
+                time.sleep(wait_time)
+
+        res = func(self, *args, **kwargs)
+
+        rate_remaining, rate_limit, reset_time = get_rate_limits(self.g)
+
+        remaining_ratio = rate_remaining / rate_limit
+
+        if remaining_ratio < settings.GITHUB_RATE_WARNING_THRESHOLD:
+            warnings.warn(f'{remaining_ratio:.1%} of rate limit remaining. Execution will pause if rate limit is reached')
+
+        return res
+
+    return wrapper
+
 class Query:
     g = None
     r = None
+    cfs = {}
 
     def __init__(
         self,
@@ -67,6 +112,7 @@ class Query:
             if l not in self.query_libs:
                 self.query_libs.append(l)
 
+    @rate_aware
     def _get_dirs_at_level(
         self,
         d
@@ -79,9 +125,15 @@ class Query:
 
             if cf.type == 'dir':
                 level_dirs.append(cf.path)
+            elif '.sql' in cf.path:
+                if cf.name in self.cfs.keys():
+                    self.repo_duplicates.append(cf.name)
+
+                self.cfs[cf.name] = cf.sha
 
         return level_dirs
 
+    @rate_aware
     def get_cfs(self):
         # Get all directories in the repo
         dirs = ['.']
@@ -99,35 +151,10 @@ class Query:
 
                 needs_scanning = [d for d in dirs if d not in scanned_dirs]
 
-        # Look through the repo dirs for sql queries
-        cfs = {}
-
-        for d in dirs:
-            dir_contents = self.r.get_contents(d)
-
-            for q in dir_contents:
-                if '.sql' in q.path:
-                    # TODO: evaluate if we can use basename instead of full
-                    # base_name = re.search(re.compile('.+(?=\.)'), q.name)
-                    #
-                    # if base_name:
-                    #     name = base_name.group(0)
-                    # else:
-                    #     name = q.name
-
-                    name = q.name
-
-                    if name in cfs.keys():
-                        self.repo_duplicates.append(name)
-
-                    cfs[name] = q.sha
-
         if len(self.repo_duplicates) > 0:
             joined_dups = ', '.join(self.repo_duplicates)
 
             warnings.warn(f'Duplicated queries found: {joined_dups}')
-
-        self.cfs = cfs
 
     def configure_repo(
         self
@@ -149,6 +176,7 @@ class Query:
 
         self.get_cfs()
 
+    @rate_aware
     def _get_repo_query(
         self,
         filename
