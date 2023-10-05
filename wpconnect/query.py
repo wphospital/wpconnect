@@ -50,7 +50,14 @@ def rate_aware(func):
             wait_time = (local_reset - local_now).total_seconds()
 
             if wait_time > 0:
-                time.sleep(wait_time)
+                if self.github_rate_action == settings.GITHUB_RATE_PAUSE:
+                    wait_time_minutes = wait_time // 60
+
+                    warnings.warn(f'Rate limit exceeded. Waiting {wait_time_minutes} minutes')
+
+                    time.sleep(wait_time)
+                elif self.github_rate_action == settings.GITHUB_RATE_KILL:
+                    pass
 
         res = func(self, *args, **kwargs)
 
@@ -82,10 +89,13 @@ class Query:
         repo=None,
         trusted_connection=True,
         make_password_safe=True,
+        github_rate_action=settings.GITHUB_RATE_PAUSE
     ):
         self.connection = Connect(connection_type, environ, server, database, port, username, password, trusted_connection, make_password_safe)
         self.conn = self.connection.conn
         self.query_libs = ['.']
+
+        self.github_rate_action = github_rate_action
 
         self.repo_config = repo is not None
 
