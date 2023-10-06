@@ -13,10 +13,70 @@ import re
 import requests
 import pkgutil
 
+import time
+import datetime as dt
+import pytz
+
+import base64
 
 settings = Settings()
 
+def get_rate_limits(g):
+    rate_remaining, rate_limit = g.rate_limiting
+
+    reset_time = g.rate_limiting_resettime
+
+    return rate_remaining, rate_limit, reset_time
+
+def rate_aware(func):
+    """Decorator for rate-aware Github API calls
+    """
+    def wrapper(self, *args, **kwargs):
+        rate_remaining, rate_limit, reset_time = get_rate_limits(self.g)
+
+        if rate_remaining < 1:
+            local_reset = dt.datetime\
+                .fromtimestamp(reset_time)\
+                .astimezone(
+                    pytz.timezone('America/New_York')
+                )
+
+            local_now = dt.datetime\
+                .now(pytz.UTC)\
+                .astimezone(
+                    pytz.timezone('America/New_York')
+                )
+
+            wait_time = (local_reset - local_now).total_seconds()
+
+            if wait_time > 0:
+                if self.github_rate_action == settings.GITHUB_RATE_PAUSE:
+                    wait_time_minutes = wait_time // 60
+
+                    warnings.warn(f'Rate limit exceeded. Waiting {wait_time_minutes} minutes')
+
+                    time.sleep(wait_time)
+                elif self.github_rate_action == settings.GITHUB_RATE_KILL:
+                    pass
+
+        res = func(self, *args, **kwargs)
+
+        rate_remaining, rate_limit, reset_time = get_rate_limits(self.g)
+
+        remaining_ratio = rate_remaining / rate_limit
+
+        if remaining_ratio < settings.GITHUB_RATE_WARNING_THRESHOLD:
+            warnings.warn(f'{remaining_ratio:.1%} of rate limit remaining. Execution will pause if rate limit is reached')
+
+        return res
+
+    return wrapper
+
 class Query:
+    g = None
+    r = None
+    cfs = {}
+
     def __init__(
         self,
         connection_type=None,
@@ -29,10 +89,13 @@ class Query:
         repo=None,
         trusted_connection=True,
         make_password_safe=True,
+        github_rate_action=settings.GITHUB_RATE_PAUSE
     ):
         self.connection = Connect(connection_type, environ, server, database, port, username, password, trusted_connection, make_password_safe)
         self.conn = self.connection.conn
         self.query_libs = ['.']
+
+        self.github_rate_action = github_rate_action
 
         self.repo_config = repo is not None
 
@@ -59,21 +122,49 @@ class Query:
             if l not in self.query_libs:
                 self.query_libs.append(l)
 
+    @rate_aware
     def _get_dirs_at_level(
         self,
-        r,
         d
     ):
         level_dirs = []
 
         # Identify directories at this level
-        for cf in r.get_contents(d):
+        for cf in self.r.get_contents(d):
             path = cf.path
 
             if cf.type == 'dir':
                 level_dirs.append(cf.path)
+            elif '.sql' in cf.path:
+                if cf.name in self.cfs.keys():
+                    self.repo_duplicates.append(cf.name)
+
+                self.cfs[cf.name] = cf.sha
 
         return level_dirs
+
+    @rate_aware
+    def get_cfs(self):
+        # Get all directories in the repo
+        dirs = ['.']
+        scanned_dirs = []
+
+        needs_scanning = [d for d in dirs if d not in scanned_dirs]
+
+        while len(needs_scanning) > 0:
+            for d in dirs:
+                level_dirs = self._get_dirs_at_level(d)
+
+                dirs += level_dirs
+
+                scanned_dirs.append(d)
+
+                needs_scanning = [d for d in dirs if d not in scanned_dirs]
+
+        if len(self.repo_duplicates) > 0:
+            joined_dups = ', '.join(self.repo_duplicates)
+
+            warnings.warn(f'Duplicated queries found: {joined_dups}')
 
     def configure_repo(
         self
@@ -89,68 +180,24 @@ class Query:
 
         repo_name = '%s/%s' % (self.repo['username'], self.repo['repo'])
 
-        g = Github(self.repo['access_token'])
+        self.g = Github(self.repo['access_token'])
 
-        r = g.get_repo(repo_name)
+        self.r = self.g.get_repo(repo_name)
 
-        # Get all directories in the repo
-        dirs = ['.']
-        scanned_dirs = []
+        self.get_cfs()
 
-        needs_scanning = [d for d in dirs if d not in scanned_dirs]
-
-        while len(needs_scanning) > 0:
-            for d in dirs:
-                level_dirs = self._get_dirs_at_level(r, d)
-
-                dirs += level_dirs
-
-                scanned_dirs.append(d)
-
-                needs_scanning = [d for d in dirs if d not in scanned_dirs]
-
-        # Look through the repo dirs for sql queries
-        cfs = {}
-
-        for d in dirs:
-            dir_contents = r.get_contents(d)
-
-            for q in dir_contents:
-                if '.sql' in q.path:
-                    # TODO: evaluate if we can use basename instead of full
-                    # base_name = re.search(re.compile('.+(?=\.)'), q.name)
-                    #
-                    # if base_name:
-                    #     name = base_name.group(0)
-                    # else:
-                    #     name = q.name
-
-                    name = q.name
-
-                    if name in cfs.keys():
-                        self.repo_duplicates.append(name)
-
-                    cfs[name] = q.download_url
-
-        if len(self.repo_duplicates) > 0:
-            joined_dups = ', '.join(self.repo_duplicates)
-
-            warnings.warn(f'Duplicated queries found: {joined_dups}')
-
-        self.cfs = cfs
-
+    @rate_aware
     def _get_repo_query(
         self,
         filename
     ):
-        headers = {'Authorization': 'token %s' % self.repo['access_token']}
+        res = self.r.get_git_blob(self.cfs[filename])
 
-        res = requests.get(self.cfs[filename], headers=headers)
+        raw_data = res.raw_data['content']
 
-        if res.status_code != 200:
-            res.raise_for_status()
+        decoded = base64.b64decode(raw_data).decode()
 
-        return res.text
+        return decoded
 
     def import_sql(
         self,
