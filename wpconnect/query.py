@@ -98,9 +98,7 @@ class Query:
         self.github_rate_action = github_rate_action
 
         self.repo_config = repo is not None
-
-        print('Running init')
-
+        
         if self.repo_config:
             self.repo = repo
 
