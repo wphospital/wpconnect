@@ -99,6 +99,8 @@ class Query:
 
         self.repo_config = repo is not None
 
+        print('Running init')
+
         if self.repo_config:
             self.repo = repo
 
@@ -122,12 +124,21 @@ class Query:
             if l not in self.query_libs:
                 self.query_libs.append(l)
 
+    @classmethod
+    def get_cfs(cls):
+        return cls.cfs
+
+    @classmethod
+    def set_cfs(cls, cfs):
+        cls.cfs = cfs
+
     @rate_aware
     def _get_dirs_at_level(
         self,
         d
     ):
         level_dirs = []
+        new_cfs = {}
 
         # Identify directories at this level
         for cf in self.r.get_contents(d):
@@ -136,24 +147,36 @@ class Query:
             if cf.type == 'dir':
                 level_dirs.append(cf.path)
             elif '.sql' in cf.path:
-                if cf.name in self.cfs.keys():
-                    self.repo_duplicates.append(cf.name)
+                new_cfs[cf.name] = cf.sha
 
-                self.cfs[cf.name] = cf.sha
-
-        return level_dirs
+        return level_dirs, new_cfs
 
     @rate_aware
-    def get_cfs(self):
+    def scan_cfs(self):
         # Get all directories in the repo
         dirs = ['.']
         scanned_dirs = []
 
         needs_scanning = [d for d in dirs if d not in scanned_dirs]
 
+        cfs = {}
+        repo_duplicates = []
         while len(needs_scanning) > 0:
             for d in dirs:
-                level_dirs = self._get_dirs_at_level(d)
+                level_dirs, new_cfs = self._get_dirs_at_level(d)
+
+                new_dups = list(
+                    set(list(new_cfs.keys())) &\
+                    set(list(cfs.keys()))
+                )
+
+                if len(new_dups) > 0:
+                    repo_duplicates += new_dups
+
+                cfs = {
+                    **cfs,
+                    **new_cfs
+                }
 
                 dirs += level_dirs
 
@@ -161,10 +184,12 @@ class Query:
 
                 needs_scanning = [d for d in dirs if d not in scanned_dirs]
 
-        if len(self.repo_duplicates) > 0:
-            joined_dups = ', '.join(self.repo_duplicates)
+        if len(repo_duplicates) > 0:
+            joined_dups = ', '.join(repo_duplicates)
 
             warnings.warn(f'Duplicated queries found: {joined_dups}')
+
+        self.set_cfs(cfs)
 
     def configure_repo(
         self
@@ -184,7 +209,7 @@ class Query:
 
         self.r = self.g.get_repo(repo_name)
 
-        self.get_cfs()
+        self.scan_cfs()
 
     @rate_aware
     def _get_repo_query(
