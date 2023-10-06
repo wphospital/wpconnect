@@ -98,7 +98,7 @@ class Query:
         self.github_rate_action = github_rate_action
 
         self.repo_config = repo is not None
-        
+
         if self.repo_config:
             self.repo = repo
 
@@ -218,7 +218,7 @@ class Query:
 
         raw_data = res.raw_data['content']
 
-        decoded = base64.b64decode(raw_data).decode()
+        decoded = base64.b64decode(raw_data).decode(errors='replace')
 
         return decoded
 
