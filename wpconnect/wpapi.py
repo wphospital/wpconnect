@@ -2,6 +2,7 @@ from cachelib.redis import RedisCache
 import requests
 from requests.auth import HTTPBasicAuth
 import pickle
+import zlib
 import warnings
 
 import pandas as pd
@@ -41,14 +42,25 @@ class WPAPIResponse:
         self._data = data
         self._key = key
 
+    @staticmethod
+    def decompress(obj):
+        try:
+            obj = zlib.decompress(obj)
+        except TypeError as err:
+            pass
+        except zlib.error as err:
+            pass
+
+        return obj
+
     def get_data(self):
         if self.iserror:
             return self._error
         else:
             if isinstance(self._data, list):
-                df = pd.concat([pickle.loads(d) for d in self._data])
+                df = pd.concat([pickle.loads(self.decompress(d)) for d in self._data])
             else:
-                df = pickle.loads(self._data)
+                df = pickle.loads(self.decompress(self._data))
 
         df.__cached__ = self.cached
 
