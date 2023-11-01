@@ -204,12 +204,26 @@ class Census:
             self.sex.append(patient_dict[mrn][3])
 
             #employment_status
-            self.employment_status.append(patient_dict[mrn][4])
+            # self.employment_status.append(patient_dict[mrn][4])
+            employed_labels = ['Self Employed','Full Time','Student - Full Time','Part Time','Student - Part Time','On Active Military Duty']
+            unemployed_labels = ['Retired','Not Employed','Disabled','Veteran''Former Employee']
+            ignore_employment_labels = ['No Patient Contact','BLANK','On Leave','Unknown','UNKNOWN']
+            if patient_dict[mrn][4] in employed_labels:
+                 self.employment_status.append(1)
+            elif patient_dict[mrn][4] in unemployed_labels:
+                 self.employment_status.append(0)
+            else:
+                self.employment_status.append(-1)
 
             #ethnicity
-            if patient_dict[mrn][5] == 'Spanish/Hispanic/Latino' or patient_dict[mrn][5] == 'Hispanic or Latino':
+            HL_labels = ['Bolivian','Puerto Rican','Guatemalan','Honduran','Latin American','Chilean','Hispanic or Latino','Nicaraguan','South American','Paraguayan',
+                         'Peruvian','Venezuelan','Cuban','Panamanian','Argentinean','Colombian','Latin America','Mexican American','Mexicano','Ecuadorian','Spanish/Hispanic/Latino',
+                         'Mexican','Hispanic-Central American','Costa Rican','Salvadoran','Uruguayan','Dominican']
+            NHL_labels = ['Not Spanish/Hispanic/Latino',]
+            ignore_ethnicity_labels = ['BLANK','Needs Clarification','Not Applicable/Unknown','Patient Unavailable','Patient Declined','UNKNOWN']
+            if patient_dict[mrn][5] in HL_labels:
                 self.ethnicity.append(1)
-            elif patient_dict[mrn][5] == 'Not Spanish/Hispanic/Latino':
+            elif patient_dict[mrn][5] in NHL_labels:
                 self.ethnicity.append(0)
             else:
                 self.ethnicity.append(-1)
