@@ -70,7 +70,8 @@ class Connect:
         return self
 
     def close(self):
-        self.conn.close()
+        if self.conn is not None:
+            self.conn.close()
 
     def set_connection_string(self):
         if self.password:
