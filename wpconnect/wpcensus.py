@@ -18,10 +18,10 @@ class Census:
             return_type = 'json'
     ):
         resp = requests.get(self.url+route,params=params)
-        print(resp.json())
+        # print(resp.json())
 
 
-        if route == 'demographic_data' or return_type == 'json':
+        if route == 'demographic_data' or route == 'get_file_titles' or return_type == 'json':
             return resp.json()
         elif return_type.lower() == 'dataframe':
             return self.return_df(resp)
@@ -114,7 +114,7 @@ class Census:
             id_df = df.loc[(id_index,),:]
         except:
             return pd.DataFrame()
-        print(id_index)
+        # print(id_index)
         # id_df
         
         cols_to_check = list(id_df.columns)
@@ -288,26 +288,80 @@ class Census:
         else:
             output_cat_list = categories
         
-        patient_info = self.get_patient_info(mrn_list)
-        for pat in patient_info:
-            if patient_info[pat][1]:
-                patient_info[pat][1] = patient_info[pat][1][:-3]
-        
-        api_parameters = self.format_patient_dict(patient_info)
 
-        total_added_cols = []
-        for cat in output_cat_list:
-            api_parameters['output'] = cat
+        completed_mrn = []
+        for index in range(0,len(mrn_list),10):
+            try:
+                patient_info = self.get_patient_info(mrn_list[index:index+10])
+                for pat in patient_info:
+                    if patient_info[pat][1]:
+                        patient_info[pat][1] = patient_info[pat][1][:-3]
+                
+                api_parameters = self.format_patient_dict(patient_info)
 
-            print(api_parameters)
-            resp_json = self.call_api('determine_file_source',params=api_parameters,return_type='json')
-            api_df = self.call_api('determine_file_source',params=api_parameters,return_type='DataFrame')
+                total_added_cols = []
+                for cat in output_cat_list:
+                    api_parameters['output'] = cat
 
-            new_pats, added_cols = self.add_api_output_to_df(df,api_df,resp_json)
-            total_added_cols.extend(added_cols)
+                    # print(api_parameters)
+                    resp_json = self.call_api('determine_file_source',params=api_parameters,return_type='json')
+                    api_df = self.call_api('determine_file_source',params=api_parameters,return_type='DataFrame')
 
-        total_added_cols = list(set(total_added_cols))
+                    new_pats, added_cols = self.add_api_output_to_df(df,api_df,resp_json)
+                    total_added_cols.extend(added_cols)
+
+                total_added_cols = list(set(total_added_cols))
+                completed_mrn.extend(mrn_list[index:index+10])
+            except:
+                break
+
         #Just moved this out of the output_cat_list loop - RETEST TOMORROW
-        return new_pats, total_added_cols
+        return new_pats, total_added_cols, completed_mrn
+        # new_pats.loc[new_pats['mrn'].isin(pat_list),:]
+    
+    def enrich_df_for_model(self,df,mrn_list,categories=None):
+
+        df = df.copy()
+
+        if not categories:
+            output_cat_list = ['BusinessAndEconomy','Education','Employment','FamiliesAndLivingArrangements',
+                 'Government','Health','Housing','IncomeAndPoverty','PopulationsAndPeople','RaceAndEthnicity']
+        else:
+            output_cat_list = categories
+        
+
+        completed_mrn = []
+        for index in range(0,len(mrn_list),10):
+            try:
+                patient_info = self.get_patient_info(mrn_list[index:index+10])
+                for pat in patient_info:
+                    if patient_info[pat][1]:
+                        patient_info[pat][1] = patient_info[pat][1][:-3]
+                
+                api_parameters = self.format_patient_dict(patient_info)
+
+                total_added_cols = []
+                for cat in output_cat_list:
+                    api_parameters['output'] = cat
+
+                    # print(api_parameters)
+                    resp_json = self.call_api('determine_file_source',params=api_parameters,return_type='json')
+                    api_df = self.call_api('determine_file_source',params=api_parameters,return_type='DataFrame')
+
+                    new_pats, added_cols = self.add_api_output_to_df(df,api_df,resp_json)
+                    total_added_cols.extend(added_cols)
+
+                total_added_cols = list(set(total_added_cols))
+                completed_mrn.extend(mrn_list[index:index+10])
+            except:
+                break
+
+        block_and_zip_cols = self.call_api('get_file_titles',params={'folder':'BlockAndZip'})
+
+        #In aggregation list also ????
+        total_added_cols = [col for col in total_added_cols if col in block_and_zip_cols]
+
+        #Just moved this out of the output_cat_list loop - RETEST TOMORROW
+        return new_pats, total_added_cols, completed_mrn
         # new_pats.loc[new_pats['mrn'].isin(pat_list),:]
         
