@@ -19,6 +19,8 @@ import pytz
 
 import base64
 
+import gc
+
 settings = Settings()
 
 def get_rate_limits(g):
@@ -245,12 +247,16 @@ class Query:
 
     @staticmethod
     def _replace_dates(
-        df : pd.DataFrame,
+        orig_df : pd.DataFrame,
         dtypes : pd.DataFrame
     ):
+        df = orig_df.copy()
+
         for c in dtypes:
             if any([is_datetime(r) for r in dtypes[c]]):
                 df[c] = pd.to_datetime(df[c])
+
+        del orig_df
 
         return df
 
@@ -289,18 +295,28 @@ class Query:
 
                         try:
                             dtypes = pd.DataFrame(dtypes)
+
+                            comb_fr = pd.concat(frames)
+
                             res = self._replace_dates(
-                                pd.concat(frames),
+                                comb_fr,
                                 dtypes
                             )
 
+                            del comb_fr
                             del dtypes
                         except Exception as err:
                             res = pd.concat(frames)
 
                             warnings.warn('Could not fix dates (likely due to duplicated columns in the original query)')
+
+                        del frames
                     else:
                         res = db_res
+
+                    del db_res
+
+                    db_res = pd.DataFrame()
 
                 except pd.io.sql.DatabaseError as err:
                     warnings.warn(str(err), UserWarning)
@@ -334,6 +350,8 @@ class Query:
         else:
             warnings.warn('No query provided', UserWarning)
             return
+
+        gc.collect()
 
         return res
 
