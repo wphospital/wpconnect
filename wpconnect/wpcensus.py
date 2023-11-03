@@ -384,4 +384,14 @@ class Census:
 
         return new_pats, total_added_cols, completed_mrn
         # new_pats.loc[new_pats['mrn'].isin(pat_list),:]
+    
+    @staticmethod
+    def get_full_cat_list():
+        return Census.full_output_cat_list
+    
+    def get_selected_cat_list(self):
+        return self.selected_output_cat_list
+    
+    def set_selected_cat_list(self,cat_list):
+        self.selected_output_cat_list = cat_list
         
