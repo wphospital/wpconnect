@@ -6,10 +6,19 @@ from .query import Query
 import os
 
 class Census:
+    url = 'http://10.16.8.21:1621/api/'
+    full_output_cat_list = ['BusinessAndEconomy','Education','Employment','FamiliesAndLivingArrangements',
+                 'Government','Health','Housing','IncomeAndPoverty','PopulationsAndPeople','RaceAndEthnicity']
+
+
     def __init__(
             self
     ):
-        self.url = 'http://10.16.8.21:1621/api/'
+        # self.url = 'http://10.16.8.21:1621/api/'
+        # self.route = 'determine_file_source'
+        # url = 'http://10.16.8.21:1621/api/'
+        self.selected_output_cat_list = Census.full_output_cat_list
+        self.patient_info = {}
 
     def call_api(
             self,
@@ -17,7 +26,7 @@ class Census:
             params,
             return_type = 'json'
     ):
-        resp = requests.get(self.url+route,params=params)
+        resp = requests.get(Census.url+route,params=params)
         # print(resp.json())
 
 
@@ -115,11 +124,10 @@ class Census:
         except:
             return pd.DataFrame()
         # print(id_index)
-        # id_df
-        
-        cols_to_check = list(id_df.columns)
-        cols_to_check.remove('patient_info')
-        cols_to_check.remove('metadata')
+        # id_df        
+        # cols_to_check = list(id_df.columns)
+        # cols_to_check.remove('patient_info')
+        # cols_to_check.remove('metadata')
         
         return id_df
     
@@ -130,7 +138,7 @@ class Census:
         mrn_string = '\'' + mrn_string + '\''
 
         # with open(os.path.join(os.getcwd(),'patient_table.sql')) as file:
-        with open('C:\\Users\\pseitz\\Documents\\wpconnect_branch\\wpconnect\\wpconnect\\patient_table.sql') as file:
+        with open('C:\\Users\\pseitz\\Documents\\wpconnect_branch\\wpconnect\\wpconnect\\queries\\patient_table.sql') as file:
             query = file.read()
 
         #Query wph database to get up to date patient information
@@ -174,9 +182,12 @@ class Census:
 
             self.patient_info = patient_info
 
-        return patient_info
+        # print(patient_info)
+        # print(self.patient_info)
+        # return patient_info
 
-    def format_patient_dict(self,patient_dict):
+    # def format_patient_dict(self,patient_dict):
+    def format_patient_dict(self):
         self.pat_mrn = []
         self.id = []
         self.age = []
@@ -185,32 +196,32 @@ class Census:
         self.ethnicity = []
         self.race = []
         
-
-        for mrn in patient_dict:
+        # for mrn in patient_dict:
+        for mrn in self.patient_info:
             self.pat_mrn.append(mrn)
             
             #id
-            if patient_dict[mrn][1]:
-                self.id.append(patient_dict[mrn][1])
-            elif patient_dict[mrn][0]:
-                self.id.append(patient_dict[mrn][0])
+            if self.patient_info[mrn][1]:
+                self.id.append(self.patient_info[mrn][1])
+            elif self.patient_info[mrn][0]:
+                self.id.append(self.patient_info[mrn][0])
             else:
                 self.id.append('-1')
 
             #age
-            self.age.append(patient_dict[mrn][2])
+            self.age.append(self.patient_info[mrn][2])
 
             #sex
-            self.sex.append(patient_dict[mrn][3])
+            self.sex.append(self.patient_info[mrn][3])
 
             #employment_status
             # self.employment_status.append(patient_dict[mrn][4])
             employed_labels = ['Self Employed','Full Time','Student - Full Time','Part Time','Student - Part Time','On Active Military Duty']
             unemployed_labels = ['Retired','Not Employed','Disabled','Veteran''Former Employee']
             ignore_employment_labels = ['No Patient Contact','BLANK','On Leave','Unknown','UNKNOWN']
-            if patient_dict[mrn][4] in employed_labels:
+            if self.patient_info[mrn][4] in employed_labels:
                  self.employment_status.append(1)
-            elif patient_dict[mrn][4] in unemployed_labels:
+            elif self.patient_info[mrn][4] in unemployed_labels:
                  self.employment_status.append(0)
             else:
                 self.employment_status.append(-1)
@@ -221,15 +232,15 @@ class Census:
                          'Mexican','Hispanic-Central American','Costa Rican','Salvadoran','Uruguayan','Dominican']
             NHL_labels = ['Not Spanish/Hispanic/Latino',]
             ignore_ethnicity_labels = ['BLANK','Needs Clarification','Not Applicable/Unknown','Patient Unavailable','Patient Declined','UNKNOWN']
-            if patient_dict[mrn][5] in HL_labels:
+            if self.patient_info[mrn][5] in HL_labels:
                 self.ethnicity.append(1)
-            elif patient_dict[mrn][5] in NHL_labels:
+            elif self.patient_info[mrn][5] in NHL_labels:
                 self.ethnicity.append(0)
             else:
                 self.ethnicity.append(-1)
 
             #race
-            self.race.append(patient_dict[mrn][6])
+            self.race.append(self.patient_info[mrn][6])
 
         return {'ids':self.id,'Patient Age':self.age,'Patient Sex':self.sex,'Patient Employment Status':self.employment_status,'Patient Ethnicity':self.ethnicity,'Patient Race':self.race}
 
@@ -237,8 +248,8 @@ class Census:
         """_summary_
 
         Args:
-            df (Dataframe): Dataframe to enrich with API output
-            output (dict): json ouput from census api /determine_file_source
+            enriched_df (Dataframe): Dataframe to enrich with API output
+            api_output_df (Dataframe): Dataframe created from json ouput of census api /determine_file_source
         """
         added_cols = []
         #Determine which patient is which if two patients have same geo_id
@@ -278,32 +289,35 @@ class Census:
         return enriched_df, added_cols
     
 
-    def enrich_df(self,df,mrn_list,categories=None):
+    def enrich_df(self,df,categories=None):
 
         df = df.copy()
 
-        if not categories:
-            output_cat_list = ['BusinessAndEconomy','Education','Employment','FamiliesAndLivingArrangements',
-                 'Government','Health','Housing','IncomeAndPoverty','PopulationsAndPeople','RaceAndEthnicity']
-        else:
-            output_cat_list = categories
-        
+        mrn_list = df['mrn'].values
 
+        # if not categories:
+        #     output_cat_list = ['BusinessAndEconomy','Education','Employment','FamiliesAndLivingArrangements',
+        #          'Government','Health','Housing','IncomeAndPoverty','PopulationsAndPeople','RaceAndEthnicity']
+        # else:
+        #     output_cat_list = categories
+        if categories:
+            self.selected_output_cat_list = categories
+        
         completed_mrn = []
         for index in range(0,len(mrn_list),10):
             try:
-                patient_info = self.get_patient_info(mrn_list[index:index+10])
-                for pat in patient_info:
-                    if patient_info[pat][1]:
-                        patient_info[pat][1] = patient_info[pat][1][:-3]
+                # patient_info = self.get_patient_info(mrn_list[index:index+10])
+                self.get_patient_info(mrn_list[index:index+10])
+                for pat in self.patient_info:
+                    if self.patient_info[pat][1]:
+                        self.patient_info[pat][1] = self.patient_info[pat][1][:-3]
                 
-                api_parameters = self.format_patient_dict(patient_info)
+                api_parameters = self.format_patient_dict()
 
                 total_added_cols = []
-                for cat in output_cat_list:
+                for cat in self.selected_output_cat_list:
                     api_parameters['output'] = cat
 
-                    # print(api_parameters)
                     resp_json = self.call_api('determine_file_source',params=api_parameters,return_type='json')
                     api_df = self.call_api('determine_file_source',params=api_parameters,return_type='DataFrame')
 
@@ -319,29 +333,36 @@ class Census:
         return new_pats, total_added_cols, completed_mrn
         # new_pats.loc[new_pats['mrn'].isin(pat_list),:]
     
-    def enrich_df_for_model(self,df,mrn_list,categories=None):
+    def enrich_df_for_model(self,df,categories=None):
 
         df = df.copy()
 
-        if not categories:
-            output_cat_list = ['BusinessAndEconomy','Education','Employment','FamiliesAndLivingArrangements',
-                 'Government','Health','Housing','IncomeAndPoverty','PopulationsAndPeople','RaceAndEthnicity']
-        else:
-            output_cat_list = categories
+        mrn_list = df['mrn'].values
+
+        # if not categories:
+        #     output_cat_list = ['BusinessAndEconomy','Education','Employment','FamiliesAndLivingArrangements',
+        #          'Government','Health','Housing','IncomeAndPoverty','PopulationsAndPeople','RaceAndEthnicity']
+        # else:
+        #     output_cat_list = categories
+        if categories:
+            self.selected_output_cat_list = categories
         
+
 
         completed_mrn = []
         for index in range(0,len(mrn_list),10):
             try:
-                patient_info = self.get_patient_info(mrn_list[index:index+10])
-                for pat in patient_info:
-                    if patient_info[pat][1]:
-                        patient_info[pat][1] = patient_info[pat][1][:-3]
+                # patient_info = self.get_patient_info(mrn_list[index:index+10])
+                self.get_patient_info(mrn_list[index:index+10])
+                for pat in self.patient_info:
+                    if self.patient_info[pat][1]:
+                        self.patient_info[pat][1] = self.patient_info[pat][1][:-3]
                 
-                api_parameters = self.format_patient_dict(patient_info)
+                # api_parameters = self.format_patient_dict(patient_info)
+                api_parameters = self.format_patient_dict()
 
                 total_added_cols = []
-                for cat in output_cat_list:
+                for cat in self.selected_output_cat_list:
                     api_parameters['output'] = cat
 
                     # print(api_parameters)
@@ -361,7 +382,6 @@ class Census:
         #In aggregation list also ????
         total_added_cols = [col for col in total_added_cols if col in block_and_zip_cols]
 
-        #Just moved this out of the output_cat_list loop - RETEST TOMORROW
         return new_pats, total_added_cols, completed_mrn
         # new_pats.loc[new_pats['mrn'].isin(pat_list),:]
         
