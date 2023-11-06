@@ -1,7 +1,7 @@
 import pandas as pd 
 import weaviate
 from weaviate.util import generate_uuid5
-from wpgraph import GraphResult
+from .wpgraph import GraphResult
 
 class Vector:
     """This module is facilitate interactions with weaviate database, 
