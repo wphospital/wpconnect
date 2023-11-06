@@ -9,6 +9,8 @@ import pandas as pd
 
 from .settings import Settings
 
+import gc
+
 settings = Settings()
 
 def get_precache_list():
@@ -58,11 +60,30 @@ class WPAPIResponse:
             return self._error
         else:
             if isinstance(self._data, list):
-                df = pd.concat([pickle.loads(self.decompress(d)) for d in self._data])
+                df_list = []
+                for d in self._data:
+                    dcmp = self.decompress(d)
+
+                    df_part = pickle.loads(dcmp)
+
+                    df_list.append(df_part)
+
+                    del dcmp
+                    del df_part
+
+                df = pd.concat(df_list)
+
+                del df_list
             else:
-                df = pickle.loads(self.decompress(self._data))
+                dcmp = self.decompress(self._data)
+
+                df = pickle.loads(dcmp)
+
+                del dcmp
 
         df.__cached__ = self.cached
+
+        gc.collect()
 
         return df
 
@@ -151,9 +172,15 @@ class WPAPIRequest:
             if len(self.last_key) == 1:
                 data = self.cache.get(self.prefix + self.last_key[0])
             else:
-                data = [self.cache.get(self.prefix + k) for k in self.last_key]
+                data = []
+                for k in self.last_key:
+                    get_part = self.cache.get(self.prefix + k)
+
+                    data.append(get_part)
 
             resp.set_data(data=data, key=self.last_key)
+
+            del data
         else:
             try:
                 warnings.warn(res.json()['data'])
@@ -161,5 +188,7 @@ class WPAPIRequest:
             except Exception as err:
                 warnings.warn(res.text)
                 resp.set_error(res.text)
+
+        gc.collect()
 
         return resp
