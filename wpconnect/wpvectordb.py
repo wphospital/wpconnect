@@ -3,28 +3,13 @@ import weaviate
 from weaviate.util import generate_uuid5
 from .wpgraph import GraphResult
 
-class Vector:
+class VectorDB:
     """This module is facilitate interactions with weaviate database, 
         mainly Provider, Patients and Visits embeddings.
 
     Attributes
     ----------
     client  
-
-    Methods
-    -------
-    get_rowcount()
-        get number of records in a class
-    get_schema()
-        show the schema of a class
-    delete_class()
-        delete the given class in the database
-    create_class()
-        create a class in the database
-    load_data()
-        import records to a class
-    get_records()
-        retrieve the records of given criteria
     """
     
     def __init__(
@@ -67,6 +52,7 @@ class Vector:
             return n
         
         if class_name:
+            class_name = class_name.capitalize()
             return get_n(class_name)
             
         res = {}
@@ -89,6 +75,7 @@ class Vector:
             dataframe contains column name and type of that class
         otherwise returns a dataframe of column name and type of the given class
         """
+        
         def _get_schema_by_class(res):
             df = pd.DataFrame([
                 {'column_name':x['name'],'data_type':x['dataType']} 
@@ -97,9 +84,10 @@ class Vector:
             return df 
 
         if  class_name:
+            class_name = class_name.capitalize()
             res = [self.client.schema.get(class_name)]
         else:
-            res = self.client.schema.get(class_name)['classes']
+            res = self.client.schema.get()['classes']
             
         final_dict = {}
         
@@ -120,6 +108,7 @@ class Vector:
         ----------
         class_name: the class to be deleted
         """
+        class_name = class_name.capitalize()
         self.client.schema.delete_class(class_name)
 
     def create_class(self, class_name,**kwargs):
@@ -129,6 +118,7 @@ class Vector:
         ----------
         class_name: the class to be created
         """
+        class_name = class_name.capitalize()
         obj = {'class':class_name}
         obj.update(kwargs)
         self.client.schema.create_class(obj)
@@ -147,6 +137,7 @@ class Vector:
         has_admissions: int
             0 or 1 indicating if this embedding contain admission info 
         """
+        class_name = class_name.capitalize()
         if not self.client.schema.exists(class_name):
             print("create class")
             self.create_class(class_name, **kwargs)
@@ -237,6 +228,7 @@ class Vector:
         -------
         Dataframe with embedding, id and columns defined in the parameter
         """
+        class_name = class_name.capitalize()
         if not columns:
             columns = [x['name'] for x in self.client.schema.get(class_name)['properties']]
         elif isinstance(columns,str):
