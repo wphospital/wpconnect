@@ -230,7 +230,7 @@ class VectorDB:
         """
         class_name = class_name.capitalize()
         if not columns:
-            columns = [x['name'] for x in self.client.schema.get(class_name)['properties']]
+            columns = self.get_columns(class_name)
         elif isinstance(columns,str):
             columns = [columns]
 
@@ -313,3 +313,45 @@ class VectorDB:
                 df = pd.DataFrame()
                 
         return df 
+
+    def get_columns(self, class_name:str):
+        """To list columns of the given class 
+
+        Parameters
+        ----------
+        class_name: str
+            which class to retrive the info from. e.g.: Patients, Visits, Providers
+
+        Returns
+        -------
+        List of column names in the class
+        """
+
+        class_name = class_name.capitalize()
+        c = [x['name'] for x in self.client.schema.get(class_name)['properties']]
+        return c
+
+    def get_distinct_values(self, class_name: str, column_name:str):
+        """To list unique values of the given column 
+
+        Parameters
+        ----------
+        class_name: str
+            which class to retrive the info from. e.g.: Patients, Visits, Providers
+        column_name: str
+            which column to search for distinct values
+
+        Returns
+        -------
+        List of distinct values in the column
+        """
+        class_name = class_name.capitalize()
+        vals = (
+            self.client.query
+            .aggregate(class_name)
+            .with_group_by_filter([column_name])
+            .with_fields("groupedBy { value }")
+            .do()
+        )['data']['Aggregate'][class_name]
+
+        return [i['groupedBy']['value'] for i in vals]
