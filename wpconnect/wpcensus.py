@@ -141,8 +141,10 @@ class Census:
         mrn_string = '\',\''.join(mrn_list)
         mrn_string = '\'' + mrn_string + '\''
 
-        print(os.path.join(os.path.dirname( __file__ ),os.path.join('queries','patient_table.sql')))
-        with open(os.path.join(os.path.dirname( __file__ ),os.path.join('queries','patient_table.sql'))) as file:
+        # print(os.getcwd())
+        # print(os.path.join(os.getcwd(),'wpconnect','queries','patient_table.sql'))
+        with open(os.path.join(os.getcwd(),'wpconnect','queries','patient_table.sql')) as file:
+        # with open(os.path.join(os.path.dirname( __file__ ),os.path.join('queries','patient_table.sql'))) as file:
         # with open('C:\\Users\\pseitz\\Documents\\wpconnect_branch\\wpconnect\\wpconnect\\queries\\patient_table.sql') as file:
             query = file.read()
 
