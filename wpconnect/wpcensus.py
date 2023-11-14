@@ -4,9 +4,11 @@ import re
 from .query import Query
 
 import os
+from datetime import datetime
 
 class Census:
     url = 'http://10.16.8.21:1621/api/'
+    # url = 'http://127.0.0.1:5000/api/'
     full_output_cat_list = ['BusinessAndEconomy','Education','Employment','FamiliesAndLivingArrangements',
                  'Government','Health','Housing','IncomeAndPoverty','PopulationsAndPeople','RaceAndEthnicity']
 
@@ -30,7 +32,9 @@ class Census:
         # print(resp.json())
 
 
-        if route == 'demographic_data' or route == 'get_file_titles' or return_type == 'json':
+        if return_type == 'full':
+            return resp
+        elif route == 'demographic_data' or route == 'get_file_titles' or return_type == 'json':
             return resp.json()
         elif return_type.lower() == 'dataframe':
             return self.return_df(resp)
@@ -289,7 +293,8 @@ class Census:
         return enriched_df, added_cols
     
 
-    def enrich_df(self,df,categories=None):
+    # def enrich_df(self,df,categories=None):
+    def enrich_df(self,df):
 
         df = df.copy()
 
@@ -300,8 +305,8 @@ class Census:
         #          'Government','Health','Housing','IncomeAndPoverty','PopulationsAndPeople','RaceAndEthnicity']
         # else:
         #     output_cat_list = categories
-        if categories:
-            self.selected_output_cat_list = categories
+        # if categories:
+        #     self.selected_output_cat_list = categories
         
         completed_mrn = []
         for index in range(0,len(mrn_list),10):
@@ -333,7 +338,8 @@ class Census:
         return new_pats, total_added_cols, completed_mrn
         # new_pats.loc[new_pats['mrn'].isin(pat_list),:]
     
-    def enrich_df_for_model(self,df,categories=None):
+    # def enrich_df_for_model(self,df,categories=None):
+    def enrich_df_for_model(self,df,interval=10):
 
         df = df.copy()
 
@@ -344,45 +350,81 @@ class Census:
         #          'Government','Health','Housing','IncomeAndPoverty','PopulationsAndPeople','RaceAndEthnicity']
         # else:
         #     output_cat_list = categories
-        if categories:
-            self.selected_output_cat_list = categories
+        # if categories:
+        #     self.selected_output_cat_list = categories
         
-
+        block_and_zip_cols = self.call_api('get_file_titles',params={'folder':'BlockAndZip'})
 
         completed_mrn = []
-        for index in range(0,len(mrn_list),10):
+        # interval = 80
+        for index in range(0,len(mrn_list),interval):
+            print('next round')
+            # print(mrn_list[index:index+interval])
             try:
                 # patient_info = self.get_patient_info(mrn_list[index:index+10])
-                self.get_patient_info(mrn_list[index:index+10])
+                self.get_patient_info(mrn_list[index:index+interval])
                 for pat in self.patient_info:
                     if self.patient_info[pat][1]:
                         self.patient_info[pat][1] = self.patient_info[pat][1][:-3]
                 
                 # api_parameters = self.format_patient_dict(patient_info)
                 api_parameters = self.format_patient_dict()
+                api_parameters['override_cache'] = True
 
-                total_added_cols = []
-                for cat in self.selected_output_cat_list:
-                    api_parameters['output'] = cat
+                # total_added_cols = []
+                # for cat in self.selected_output_cat_list:
+                #     api_parameters['output'] = cat
 
-                    # print(api_parameters)
-                    resp_json = self.call_api('determine_file_source',params=api_parameters,return_type='json')
-                    api_df = self.call_api('determine_file_source',params=api_parameters,return_type='DataFrame')
+                #     # print(api_parameters)
+                #     resp_json = self.call_api('determine_file_source',params=api_parameters,return_type='json')
+                #     api_df = self.call_api('determine_file_source',params=api_parameters,return_type='DataFrame')
 
-                    new_pats, added_cols = self.add_api_output_to_df(df,api_df,resp_json)
-                    total_added_cols.extend(added_cols)
+                #     new_pats, added_cols = self.add_api_output_to_df(df,api_df,resp_json)
+                #     total_added_cols.extend(added_cols)
+
+                # total_added_cols = list(set(total_added_cols))
+                # completed_mrn.extend(mrn_list[index:index+10])
+                
+                api_parameters['output'] = 'All'
+
+                # print(api_parameters)
+                now = datetime.now()
+                resp = self.call_api('determine_file_source',params=api_parameters,return_type='full')
+                resp_json = resp.json()
+                end = datetime.now()
+                total_time = (end-now)
+                print('API call 1:',total_time)
+                
+                now = datetime.now()
+                # api_df = self.call_api('determine_file_source',params=api_parameters,return_type='DataFrame')
+                # print(api_df.index)
+                api_df = self.return_df(resp)
+                end = datetime.now()
+                total_time = (end-now)
+                print('API call 2:',total_time)
+
+                now = datetime.now()
+                df, total_added_cols = self.add_api_output_to_df(df,api_df,resp_json)
+                # total_added_cols.extend(added_cols)
 
                 total_added_cols = list(set(total_added_cols))
-                completed_mrn.extend(mrn_list[index:index+10])
+                completed_mrn.extend(mrn_list[index:index+interval])
+                end = datetime.now()
+                total_time = (end-now)
+                print('Add to df:',total_time)
             except:
                 break
 
-        block_and_zip_cols = self.call_api('get_file_titles',params={'folder':'BlockAndZip'})
+        # try:
+        #     block_and_zip_cols = self.call_api('get_file_titles',params={'folder':'BlockAndZip'})
+        # except:
+        #     block_and_zip_cols = 
 
         #In aggregation list also ????
         total_added_cols = [col for col in total_added_cols if col in block_and_zip_cols]
 
-        return new_pats, total_added_cols, completed_mrn
+        # return new_pats, total_added_cols, completed_mrn
+        return df, total_added_cols, completed_mrn
         # new_pats.loc[new_pats['mrn'].isin(pat_list),:]
     
     @staticmethod
