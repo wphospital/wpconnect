@@ -6,6 +6,8 @@ from .query import Query
 import os
 from datetime import datetime
 
+
+
 class Census:
     url = 'http://10.16.8.21:1621/api/'
     # url = 'http://127.0.0.1:5000/api/'
@@ -142,14 +144,17 @@ class Census:
         mrn_string = '\'' + mrn_string + '\''
 
         # print(os.getcwd())
-        # print(os.path.join(os.getcwd(),'wpconnect','queries','patient_table.sql'))
-        with open(os.path.join(os.getcwd(),'wpconnect','queries','patient_table.sql')) as file:
-        # with open(os.path.join(os.path.dirname( __file__ ),os.path.join('queries','patient_table.sql'))) as file:
-        # with open('C:\\Users\\pseitz\\Documents\\wpconnect_branch\\wpconnect\\wpconnect\\queries\\patient_table.sql') as file:
-            query = file.read()
+        # print(os.path.join(os.pardir,'queries','patient_table.sql'))
+        # # with open(os.path.join(os.getcwd(),'wpconnect','queries','patient_table.sql')) as file:
+        # with open(os.path.join(os.pardir,'queries','patient_table.sql')) as file:
+        # # with open('C:\\Users\\pseitz\\Documents\\wpconnect_branch\\wpconnect\\wpconnect\\queries\\patient_table.sql') as file:
+        #     query = file.read()
+        
+
 
         #Query wph database to get up to date patient information
         q = Query(connection_type="mit_edw",environ='qa',port=3923,username='pseitz',password='temppass!2023')
+        query = q.import_sql('patient_table.sql')
         params_dict = {'mrn_list':mrn_string}
         query = query.format(**params_dict)
         patient_table = q.execute_query(query=query)
