@@ -19,6 +19,9 @@ import pytz
 
 import base64
 
+from sqlparse.tokens import *
+import sqlparse
+
 import gc
 
 settings = Settings()
@@ -401,3 +404,152 @@ class Query:
             con=conn,
             **kwargs
         )
+
+    def _filter_tokens(self, stmt):
+        mode = ''
+        res = {k:[] for k in ['select','from','cte','comments']}
+        for token in stmt.tokens:
+            # print(token.ttype)
+            if isinstance(token, sqlparse.sql.Comment):
+                res['comments'].append(str(token))
+                mode = ''
+            elif token.ttype == CTE:
+                mode = 'cte'
+            elif token.ttype == DML and str(token) == 'SELECT':
+                mode = 'select'
+            elif token.ttype == Keyword and (str(token)== 'FROM' or 'JOIN' in str(token)):
+                mode = 'from'
+            elif mode == 'select' and token.ttype==Wildcard:
+                res[mode].append(token)
+            elif mode != '' and token.ttype is None:                
+                res[mode].extend(token)
+                mode = ''    
+        return res
+
+    def _parse_query(self, stmt):
+        
+        res = self._filter_tokens(stmt)
+        res['comments'] = ' '.join(res['comments'])
+        cte_list = self._parse_identifiers(res['cte'],cte=True)
+        cte = {}
+        for d in cte_list:
+            cte.update(d)
+        res['cte'] = cte
+
+        columns = self._parse_identifiers(res['select'])
+        tables  = self._parse_identifiers(res['from'])
+     
+        res['from'] = tables
+        
+        if '*' not in ''.join(columns):
+            res['select'] = columns
+        else:
+            x = [n.split('.')[0].upper() for n in columns if '.' in n]
+            if len(x) > 0:
+                tables = x
+                
+            for t in tables:
+                if t in cte:
+                    columns.extend(cte[t]['select'])
+                else:
+                    columns.append(f'From Table: {t}')
+            columns = [c for c in columns if '*' not in c]
+        for c in columns:
+            if 'From Table' in c and c.split(': ')[-1] in cte:
+                columns.remove(c)
+                columns.extend(cte[c.split(': ')[-1]]['select'])
+            
+        res['select'] = columns
+        res = {k:v for k, v in res.items() if len(v) > 0}
+        self.struct = res
+        return res
+
+    def _parse_identifiers(self, tokens, cte=False):
+    
+        name  = []
+        temp = {}
+        res = []
+        for token in tokens:
+
+            if isinstance(token, sqlparse.sql.IdentifierList):
+                res.append([i.get_name().upper() for i in token.get_identifiers()]) 
+            elif token.ttype == Name:
+                if len(name) > 0 and name[-1][-1] == '.':
+                    name[-1] = name[-1] + str(token).upper()                
+                else:
+                    name.append(str(token).upper())
+                
+            elif isinstance(token, sqlparse.sql.Parenthesis):
+                temp = self._parse_query(token)
+
+                if cte:
+                    res.append({name[-1]:temp})
+                    temp = {}
+                 
+            elif cte and isinstance(token, sqlparse.sql.Identifier): 
+
+                dd = [t for t in token if t.ttype is None][0]
+                res.extend(name)
+                name = []
+                res.append({token.get_name().upper(): self._parse_query(dd)})
+            elif not cte and isinstance(token, sqlparse.sql.Identifier) and not '@' in str(token): 
+                nn = token.get_name().upper()
+                if '*' in nn:
+                    nn = str(token) 
+                if temp:
+                    res.append({nn: temp})
+                    temp = {}
+                elif len(name) > 0:
+                    name = ' '.join(name).replace('. ','.').split(' ')
+                    res.extend(name)
+                    name = []
+                else:
+                    res.append(nn)
+            elif str(token) == '.':
+                name[-1] = name[-1] + '.'
+                while len(name) > 1:
+                    res.append(name.pop(0))
+                
+            elif '@' in str(token):
+                name[-1] = name[-1] + str(token)  
+                while len(name) > 1:
+                    res.append(name.pop(0))
+            elif token.ttype == Wildcard:
+                if len(name) > 1:
+                    name[-1] = name[-1] + '*'
+                    res.append(name.pop(-1))
+                else:
+                    res.append('*')
+
+        if len(name) > 0:
+        
+            name = ' '.join(name).replace('. ','.').split(' ')
+            if temp:
+                res.append([{name.pop(-1):temp}])
+            res.extend(name)
+            name = []
+        return res
+
+    def parse_query(self, filename: str):
+        query = self.import_sql(filename)
+        stmt = sqlparse.parse(query)[0]
+        self.struct = _parse_query(stmt)
+       
+
+    def get_comments(self):
+        c = self.struct['comments']
+        sec_starts = [i.span()[0] for i in re.finditer(r'[^\:\n]+(?=\:)', c)]
+        
+        if len(sec_starts) > 0:
+            ln = []
+            for i in range(len(sec_starts)-1):
+                ln.append(c[sec_starts[i]:sec_starts[i+1]])
+            ln.append(c[sec_starts[-1]:].split('*')[0])
+            
+            header = {l.split(':')[0]:l.split(':')[-1].strip(' \n')  for l in ln}
+        else:
+            header = {} 
+        return header
+
+    def get_columns(self):
+        return self.struct['select']
