@@ -533,7 +533,7 @@ class Query:
     def parse_query(self, filename: str):
         query = self.import_sql(filename)
         stmt = sqlparse.parse(query)[0]
-        self.struct = _parse_query(stmt)
+        self.struct = self._parse_query(stmt)
        
 
     def get_comments(self):
