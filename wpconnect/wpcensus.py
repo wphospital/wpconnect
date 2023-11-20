@@ -9,8 +9,8 @@ from datetime import datetime
 
 
 class Census:
-    url = 'http://10.16.8.21:1621/api/'
-    # url = 'http://127.0.0.1:5000/api/'
+    # url = 'http://10.16.8.21:1621/api/'
+    url = 'http://127.0.0.1:5000/api/'
     full_output_cat_list = ['BusinessAndEconomy','Education','Employment','FamiliesAndLivingArrangements',
                  'Government','Health','Housing','IncomeAndPoverty','PopulationsAndPeople','RaceAndEthnicity']
 
@@ -30,6 +30,18 @@ class Census:
             params,
             return_type = 'json'
     ):
+        """Calls CensusAPI at given url in 'url' class attribute
+
+        Args:
+            route (str): route to access at given api url
+            params (dict): dictionary containing any set parameters for the API route
+            return_type (str): Determines return format for API output ("json","full","dataframe"). Defaults to 'json'.
+
+        Returns:
+            resp/json/DataFrame: API ouptut formatted based on return_type set
+        """
+
+        #Make API call
         resp = requests.get(Census.url+route,params=params)
         # print(resp.json())
 
@@ -263,6 +275,9 @@ class Census:
             enriched_df (Dataframe): Dataframe to enrich with API output
             api_output_df (Dataframe): Dataframe created from json ouput of census api /determine_file_source
         """
+
+        now = datetime.now()
+
         added_cols = []
         #Determine which patient is which if two patients have same geo_id
         for returned_id in list(output.keys()):
@@ -271,8 +286,11 @@ class Census:
                     if returned_id.split('_')[0] in self.patient_info[pat]: 
                         if self.patient_info[pat][2] == output[returned_id]['patient_info']['AGE']:
                             self.patient_info[pat][self.patient_info[pat].index(returned_id.split('_')[0])] = returned_id
-                            print(self.patient_info[pat])
+                            # print(self.patient_info[pat])
         
+        
+
+        now = datetime.now()
         #For each geo_id, get sub_df of geo_id data
         for mrn in self.pat_mrn:
             #If api returned data for given patient's geo_id (Checks zipcode then censusblockid), set id_df to contain data returned for only that geo_id
@@ -284,20 +302,35 @@ class Census:
             #Remove columns with no info
             id_df = id_df.loc[:,[not bool(re.fullmatch(r'Total((\s)*\.\d)?',col)) for col in id_df.columns]]
 
+            # print(id_df)
+
+            now_mid = datetime.now()
+
+
+            #Can merge? But what about existing, new columns, they get _x and _y appended?  Is pd.merge faster?
             #For each file (row) in id_df
             for row in id_df.index:
-                if id_df.loc[row,~id_df.loc[row,:].isna().values].index[-1] != 'metadata' and id_df.loc[row,~id_df.loc[row,:].isna().values].index[-1] != 'filtering':
+                col_returned_for_file = id_df.loc[row,~id_df.loc[row,:].isna().values].index[-1]
+                if col_returned_for_file != 'metadata' and col_returned_for_file != 'filtering':
                     if row not in added_cols:
                         added_cols.append(row)
                     # added_mrn.append(mrn)
                     #If not an aggregation file, can convert value to float.  Use those for testing later
                     try:
                         float(id_df.loc[row,~id_df.loc[row,:].isna().values][-1])
-                        enriched_df.loc[enriched_df['mrn'] == mrn,row] = id_df.loc[row,~id_df.loc[row,:].isna().values].index[-1]
+                        enriched_df.loc[enriched_df['mrn'] == mrn,row] = col_returned_for_file
                         # added_cols.append(row)
                     except ValueError:
                         enriched_df.loc[enriched_df['mrn'] == mrn,row] = id_df.loc[row,~id_df.loc[row,:].isna().values][-1]
+                    
+            end = datetime.now()
+            total_time = (end-now_mid)
+            print('Mid Step:',total_time)
         
+        end = datetime.now()
+        total_time = (end-now)
+        print('Step 2:',total_time)
+
         return enriched_df, added_cols
     
 
@@ -306,7 +339,12 @@ class Census:
 
         df = df.copy()
 
-        mrn_list = df['mrn'].values
+        if type(df) == pd.Series:
+            mrn_list = df.values
+        elif type(df) == pd.DataFrame:
+            mrn_list = df['mrn'].values
+        else:
+            return pd.DataFrame()
 
         # if not categories:
         #     output_cat_list = ['BusinessAndEconomy','Education','Employment','FamiliesAndLivingArrangements',
@@ -351,7 +389,15 @@ class Census:
 
         df = df.copy()
 
-        mrn_list = df['mrn'].values
+        #CHECK FOR UNIQUE MRN
+        if type(df) == pd.Series and df.name.lower() == 'mrn':
+            # mrn_list = df.values
+            df = pd.DataFrame(df,columns=['mrn'])
+            mrn_list = df['mrn'].values
+        elif type(df) == pd.DataFrame:
+            mrn_list = df['mrn'].values
+        else:
+            return pd.DataFrame()
 
         # if not categories:
         #     output_cat_list = ['BusinessAndEconomy','Education','Employment','FamiliesAndLivingArrangements',
@@ -377,21 +423,7 @@ class Census:
                 
                 # api_parameters = self.format_patient_dict(patient_info)
                 api_parameters = self.format_patient_dict()
-                api_parameters['override_cache'] = True
-
-                # total_added_cols = []
-                # for cat in self.selected_output_cat_list:
-                #     api_parameters['output'] = cat
-
-                #     # print(api_parameters)
-                #     resp_json = self.call_api('determine_file_source',params=api_parameters,return_type='json')
-                #     api_df = self.call_api('determine_file_source',params=api_parameters,return_type='DataFrame')
-
-                #     new_pats, added_cols = self.add_api_output_to_df(df,api_df,resp_json)
-                #     total_added_cols.extend(added_cols)
-
-                # total_added_cols = list(set(total_added_cols))
-                # completed_mrn.extend(mrn_list[index:index+10])
+                # api_parameters['override_cache'] = True
                 
                 api_parameters['output'] = 'All'
 
@@ -420,7 +452,8 @@ class Census:
                 end = datetime.now()
                 total_time = (end-now)
                 print('Add to df:',total_time)
-            except:
+            except Exception as e:
+                print(e)
                 break
 
         # try:
