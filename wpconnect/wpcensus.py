@@ -9,8 +9,8 @@ from datetime import datetime
 
 
 class Census:
-    # url = 'http://10.16.8.21:1621/api/'
-    url = 'http://127.0.0.1:5000/api/'
+    url = 'http://10.16.8.21:1621/api/'
+    # url = 'http://127.0.0.1:5000/api/'
     full_output_cat_list = ['BusinessAndEconomy','Education','Employment','FamiliesAndLivingArrangements',
                  'Government','Health','Housing','IncomeAndPoverty','PopulationsAndPeople','RaceAndEthnicity']
 
