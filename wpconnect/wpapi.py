@@ -57,6 +57,7 @@ class WPAPIResponse:
         return obj
 
     def get_data(
+        self,
         as_data_frame : bool = True
     ):
         if self.iserror:
