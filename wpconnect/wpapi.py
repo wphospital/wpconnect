@@ -40,9 +40,10 @@ class WPAPIResponse:
     def set_query(self, query):
         self._query = query
 
-    def set_data(self, data, key):
+    def set_data(self, data, key, from_cache : bool = True):
         self._data = data
         self._key = key
+        self._from_cache = from_cache
 
     @staticmethod
     def decompress(obj):
@@ -55,31 +56,39 @@ class WPAPIResponse:
 
         return obj
 
-    def get_data(self):
+    def get_data(
+        as_data_frame : bool = True
+    ):
         if self.iserror:
             return self._error
         else:
-            if isinstance(self._data, list):
-                df_list = []
-                for d in self._data:
-                    dcmp = self.decompress(d)
+            if self._from_cache:
+                if isinstance(self._data, list):
+                    df_list = []
+                    for d in self._data:
+                        dcmp = self.decompress(d)
 
-                    df_part = pickle.loads(dcmp)
+                        df_part = pickle.loads(dcmp)
 
-                    df_list.append(df_part)
+                        df_list.append(df_part)
+
+                        del dcmp
+                        del df_part
+
+                    df = pd.concat(df_list)
+
+                    del df_list
+                else:
+                    dcmp = self.decompress(self._data)
+
+                    df = pickle.loads(dcmp)
 
                     del dcmp
-                    del df_part
-
-                df = pd.concat(df_list)
-
-                del df_list
             else:
-                dcmp = self.decompress(self._data)
-
-                df = pickle.loads(dcmp)
-
-                del dcmp
+                if as_data_frame:
+                    df = pd.DataFrame(self._data)
+                else:
+                    df = self._data
 
         df.__cached__ = self.cached
 
@@ -167,20 +176,30 @@ class WPAPIRequest:
         resp.set_query(query=self.last_query)
 
         if res.status_code == 200:
-            self.last_key = res.json()['data']
+            if kwargs.get('return_cache_key', True):
+                self.last_key = res.json()['data']
 
-            if len(self.last_key) == 1:
-                data = self.cache.get(self.prefix + self.last_key[0])
+                if len(self.last_key) == 1:
+                    data = self.cache.get(self.prefix + self.last_key[0])
+                else:
+                    data = []
+                    for k in self.last_key:
+                        get_part = self.cache.get(self.prefix + k)
+
+                        data.append(get_part)
+
+                resp.set_data(data=data, key=self.last_key)
+
+                del data
             else:
-                data = []
-                for k in self.last_key:
-                    get_part = self.cache.get(self.prefix + k)
+                res_json = res.json()
 
-                    data.append(get_part)
+                if isinstance(res_json, dict):
+                    data = res_json.get('data', res_json)
+                else:
+                    data = res_json
 
-            resp.set_data(data=data, key=self.last_key)
-
-            del data
+                resp.set_data(data=data, key=None, from_cache=False)
         else:
             try:
                 warnings.warn(res.json()['data'])
