@@ -1,7 +1,43 @@
-import pandas as pd 
+import pandas as pd
+
+from pandas.api.types import is_datetime64_any_dtype as is_datetime
+
+import warnings
 import weaviate
 from weaviate.util import generate_uuid5
 from .wpgraph import GraphResult
+
+import time
+
+def configure_batch(client: weaviate.Client, batch_size: int, batch_target_rate: int):
+    """
+    Configure the weaviate client's batch so it creates objects at `batch_target_rate`.
+
+    Parameters
+    ----------
+    client : Client
+        The Weaviate client instance.
+    batch_size : int
+        The batch size.
+    batch_target_rate : int
+        The batch target rate as # of objects per second.
+    """
+
+    def callback(batch_results: dict) -> None:
+
+        weaviate.util.check_batch_result(batch_results)
+
+        time_took_to_create_batch = batch_size * (client.batch.creation_time/client.batch.recommended_num_objects)
+        
+        time.sleep(
+            max(batch_size/batch_target_rate - time_took_to_create_batch + 1, 0)
+        )
+
+    client.batch.configure(
+        batch_size=batch_size,
+        timeout_retries=5,
+        callback=callback,
+    )
 
 class VectorDB:
     """This module is facilitate interactions with weaviate database, 
@@ -22,14 +58,16 @@ class VectorDB:
             url, 
             auth_client_secret=weaviate.AuthApiKey(api_key=auth_key), 
             **kwargs
-            )
+        )
+
+        configure_batch(self.client, batch_size=5, batch_target_rate=1)
         
-    def _get_key(self, source, db_id, has_admissions=1):
+    def _get_key(self, kwargs : dict):
         """Helper function to generate the uuid used in row identifier inside class
         
         Returns: uuid
         """
-        return generate_uuid5({'source':source, 'db_id':db_id, 'has_admissions':has_admissions})
+        return generate_uuid5(kwargs)
     
     def get_rowcount(self, class_name=None):
         """List number of records in class
@@ -123,7 +161,28 @@ class VectorDB:
         obj.update(kwargs)
         self.client.schema.create_class(obj)
 
-    def load_data(self, dat, class_name:str, source: str, has_admissions: int=1, **kwargs):
+    @staticmethod
+    def _check_datetime(value):
+        try:
+            return is_datetime(value)
+        except ValueError as err:
+            return False
+
+    def process_val(self, value):
+        if self._check_datetime(value) or isinstance(value, pd.Timestamp) or value is pd.NaT:
+            return value.isoformat()
+
+        return value
+
+    def load_data(
+        self,
+        dat,
+        class_name:str,
+        source: str = None,
+        has_admissions: int = 1,
+        uuid_keys : list = ['db_id'],
+        **kwargs
+    ):
         """Import data to a class
 
         Parameters
@@ -137,10 +196,21 @@ class VectorDB:
         has_admissions: int
             0 or 1 indicating if this embedding contain admission info 
         """
+        if 'source' not in dat.columns and source is None:
+            raise Exception('Must provide a source either in the data or as an argument')
+
+        if source is not None:
+            if 'source' in dat.columns:
+                warnings.warn('Source provided as an argument. Overriding values in data')
+
         class_name = class_name.capitalize()
         if not self.client.schema.exists(class_name):
             print("create class")
             self.create_class(class_name, **kwargs)
+
+        class_cols = self.get_columns(class_name)
+
+        load_cols = set(class_cols) & set(dat.columns)
 
         if isinstance(dat, pd.DataFrame):
             dat = dat.to_dict('records')
@@ -148,54 +218,32 @@ class VectorDB:
             dat = dat.records
 
         with self.client.batch as batch:
-            for r in dat:
-                if class_name == "Visits":
-                    obj = {
-                        "db_id":r["db_id"],
-                        "native_id":r["native_id"],
-                        "start_date":r["start_date"].isoformat() if r["start_date"] else None,
-                        "end_date":r["end_date"].isoformat() if r["end_date"] else None,
-                        "source":source,
-                        "has_admissions":has_admissions}
-                elif class_name == "Patients":
-                    source = "patient"
-                    obj = {
-                        "native_id":r["native_id"],
-                        "db_id":r["db_id"],
-                        "has_admissions": has_admissions,
-                        "source":source
-                    }
+            for _, r in enumerate(dat):
+                row_source = source if source is not None else r['source']
 
-                elif class_name == "Providers":
-                    source = "provider"
-                    obj = {
-                        "native_id":r["native_id"],
-                        "db_id":r["db_id"],
-                        "has_admissions": has_admissions,
-                        "source":source
+                obj = {
+                    **{'source': row_source, 'has_admissions': has_admissions},
+                    **{
+                        k: self.process_val(r.get(k))
+                        for k in load_cols
                     }
-                else:
-                    obj = {k:v for k,v in r.items() if k != 'embedding'}
-                    obj.update({'has_admissions':has_admissions, "source":source})
+                }
 
+                all_keys = {
+                    **{'source': row_source},
+                    **{u: r.get(u) for u in uuid_keys},
+                    **{'has_admissions': has_admissions}
+                }
 
                 batch.add_data_object(
                     obj,
                     class_name,
-                    vector=r["embedding"],
-                    uuid=self._get_key(source, r["db_id"], has_admissions)
+                    vector=r.get("embedding"),
+                    uuid=self._get_key(all_keys)
                 )
-        # print(self.client.query\
-        #     .aggregate(class_name)\
-        #     .with_where({
-        #         "operator":"And",
-        #         "operands":[
-        #             {'path':'has_admissions','operator':'Equal','valueInt':has_admissions},
-        #             {'path':'source','operator':'Equal','valueText':source}
-        #             ]
-        #         })\
-        #     .with_meta_count()\
-        #     .do() )
+
+                if _ % 100 == 0:
+                    print(_)
 
     def get_records(self, 
             class_name: str, 
@@ -203,7 +251,8 @@ class VectorDB:
             native_id: str=None, 
             has_admissions: int=1, 
             source: str=None, 
-            columns: list=None
+            columns: list=None,
+            uuid_keys : list = ['db_id']
         ):
         """To retrive embeddings from Weaviate database. 
 
@@ -238,6 +287,8 @@ class VectorDB:
             source='patient'
         elif class_name == 'Providers':
             source = 'provider'
+        elif class_name == 'Comments':
+            source = 'comment'
         elif not source:
             source='inp'
         
@@ -277,7 +328,13 @@ class VectorDB:
             
         elif db_id:
             
-            uuid = self._get_key(source, db_id, has_admissions)
+            all_keys = {
+                'source': source,
+                'db_id': db_id,
+                'has_admissions': has_admissions
+            }
+
+            uuid = self._get_key(all_keys)
             dat = self.client.data_object.get_by_id(uuid,class_name=class_name,with_vector=True )
 
             try:

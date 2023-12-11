@@ -636,11 +636,18 @@ class ClinicalGraph:
         
         return value
 
+    @staticmethod
+    def _check_datetime(value):
+        try:
+            return is_datetime(value)
+        except ValueError as err:
+            return False
+
     def _normalize_attrs(self, attrs, string=True):
         attrs = {
             k: (
                 'datetime({})'.format(self._normalize_datetime(v))
-                if (is_datetime(v) or isinstance(v, pd.Timestamp) or v is pd.NaT) and v != 'M'
+                if (self._check_datetime(v) or isinstance(v, pd.Timestamp) or v is pd.NaT) and v != 'M'
                 else (self._normalize_value(v) if v is not None else 'null')
             ) for k, v in attrs.items()
         }
