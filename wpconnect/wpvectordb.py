@@ -181,6 +181,7 @@ class VectorDB:
         source: str = None,
         has_admissions: int = 1,
         uuid_keys : list = ['db_id'],
+        custom_embeddings: str = 'embedding',
         **kwargs
     ):
         """Import data to a class
@@ -210,7 +211,7 @@ class VectorDB:
 
         class_cols = self.get_columns(class_name)
 
-        load_cols = set(class_cols) & set(dat.columns)
+        load_cols = set(class_cols).union(set(dat.columns))
 
         if isinstance(dat, pd.DataFrame):
             dat = dat.to_dict('records')
@@ -221,26 +222,42 @@ class VectorDB:
             for _, r in enumerate(dat):
                 row_source = source if source is not None else r['source']
 
-                obj = {
-                    **{'source': row_source, 'has_admissions': has_admissions},
-                    **{
-                        k: self.process_val(r.get(k))
-                        for k in load_cols
-                    }
-                }
-
                 all_keys = {
                     **{'source': row_source},
                     **{u: r.get(u) for u in uuid_keys},
                     **{'has_admissions': has_admissions}
                 }
 
-                batch.add_data_object(
-                    obj,
-                    class_name,
-                    vector=r.get("embedding"),
-                    uuid=self._get_key(all_keys)
-                )
+                if custom_embeddings:
+
+                    obj = {
+                        **{'source': row_source, 'has_admissions': has_admissions},
+                        **{
+                            k: self.process_val(r.get(k))
+                            for k in load_cols if k != custom_embeddings
+                        }
+                    }
+
+                    batch.add_data_object(
+                        obj,
+                        class_name,
+                        vector=r.get("embedding"),
+                        uuid=self._get_key(all_keys)
+                    )
+                else:
+                    obj = {
+                        **{'source': row_source, 'has_admissions': has_admissions},
+                        **{
+                            k: self.process_val(r.get(k))
+                            for k in load_cols
+                        }
+                    }
+
+                    batch.add_data_object(
+                        obj,
+                        class_name,
+                        uuid=self._get_key(all_keys)
+                    )
 
                 if _ % 100 == 0:
                     print(_)
