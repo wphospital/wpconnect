@@ -92,8 +92,7 @@ class WPAPIResponse:
                     df = self._data
 
         try:
-            if df._attrs.get('cached') is None:
-                df._attrs['cached'] = self.cached
+            df._attrs['cached'] = self.cached
         except Exception as err:
             pass
 
