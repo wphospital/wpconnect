@@ -79,6 +79,8 @@ class Connect:
                 safe_password = quote_plus(self.password)
             else:
                 safe_password=self.password
+        else:
+            safe_password = None
 
         if self.server in [settings.EDW_SERVER, settings.EDW_SERVER_PROD]:
             self.connection_string = (
@@ -90,8 +92,6 @@ class Connect:
         else:
             driver = 'ODBC Driver 17 for SQL Server'.replace(' ', '+')
 
-            trusted = 'yes' if self.trusted_connection else 'no'
-
             self.connection_string = (
                 f'mssql+pyodbc:'
                 f'//{self.username}:{safe_password}'
@@ -99,6 +99,10 @@ class Connect:
                 f'{self.database}'
                 f'?driver={driver}'
             )
+
+            if self.trusted_connection:
+                self.connection_string += '&trusted_connection=yes'
+                
 
     def create_connection(self):
         self.set_connection_string()
