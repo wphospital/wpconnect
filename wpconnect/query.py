@@ -407,7 +407,7 @@ class Query:
 
     def _filter_tokens(self, stmt):
         mode = ''
-        res = {k:[] for k in ['select','from','cte','comments']}
+        res = {k:[] for k in ['select','from','cte','comments','where']}
         for token in stmt.tokens:
             # print(token.ttype)
             if isinstance(token, sqlparse.sql.Comment):
@@ -415,10 +415,12 @@ class Query:
                 mode = ''
             elif token.ttype == CTE:
                 mode = 'cte'
-            elif token.ttype == DML and str(token) == 'SELECT':
+            elif token.ttype == DML and str(token).upper() == 'SELECT':
                 mode = 'select'
-            elif token.ttype == Keyword and (str(token)== 'FROM' or 'JOIN' in str(token)):
+            elif token.ttype == Keyword and (str(token).upper()== 'FROM' or 'JOIN' in str(token).upper()):
                 mode = 'from'
+            elif isinstance(token, sqlparse.sql.Where):
+                res['where'] = token.value
             elif mode == 'select' and token.ttype==Wildcard:
                 res[mode].append(token)
             elif mode != '' and token.ttype is None:                
@@ -461,7 +463,7 @@ class Query:
             
         res['select'] = columns
         res = {k:v for k, v in res.items() if len(v) > 0}
-        self.struct = res
+     
         return res
 
     def _parse_identifiers(self, tokens, cte=False):
@@ -533,13 +535,15 @@ class Query:
             name = []
         return res
 
-    def parse_query(self, filename: str):
-        query = self.import_sql(filename)
-        stmt = sqlparse.parse(query)[0]
+    def parse_query(self, filename: str=None, raw_query=None):
+        if filename:
+            raw_query = self.import_sql(filename)
+    
+        stmt = sqlparse.parse(raw_query)[0]
         return self._parse_query(stmt)
        
     def get_comments(self, query_fn):
-        c = self.parse_query(query_fn)['comments']
+        c = self.parse_query(filename=query_fn)['comments']
         
         sec_starts = [i.span()[0] for i in re.finditer(r'[^\:\n]+(?=\:)', c)]
         
@@ -555,4 +559,4 @@ class Query:
         return header
 
     def get_columns(self, query_fn):
-        return self.parse_query(query_fn)['select']
+        return self.parse_query(filename=query_fn)['select']
