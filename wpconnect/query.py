@@ -511,9 +511,12 @@ class Query:
                     res.append(name.pop(0))
                 
             elif '@' in str(token):
-                name[-1] = name[-1] + str(token)  
-                while len(name) > 1:
-                    res.append(name.pop(0))
+                if len(name) > 0:
+                    name[-1] = name[-1] + str(token)  
+                    while len(name) > 1:
+                        res.append(name.pop(0))
+                else:
+                    res.append(str(token))
             elif token.ttype == Wildcard:
                 if len(name) > 1:
                     name[-1] = name[-1] + '*'
