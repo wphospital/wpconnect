@@ -536,11 +536,11 @@ class Query:
     def parse_query(self, filename: str):
         query = self.import_sql(filename)
         stmt = sqlparse.parse(query)[0]
-        self.struct = self._parse_query(stmt)
+        return = self._parse_query(stmt)
        
-
-    def get_comments(self):
-        c = self.struct['comments']
+    def get_comments(self, query_fn):
+        c = self.parse_query(query_fn)['comments']
+        
         sec_starts = [i.span()[0] for i in re.finditer(r'[^\:\n]+(?=\:)', c)]
         
         if len(sec_starts) > 0:
@@ -554,5 +554,5 @@ class Query:
             header = {} 
         return header
 
-    def get_columns(self):
-        return self.struct['select']
+    def get_columns(self, query_fn):
+        return self.parse_query(query_fn)['select']
