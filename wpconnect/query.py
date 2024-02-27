@@ -435,7 +435,8 @@ class Query:
         cte_list = self._parse_identifiers(res['cte'],cte=True)
         cte = {}
         for d in cte_list:
-            cte.update(d)
+            if isinstance(d, dict):
+                cte.update(d)
         res['cte'] = cte
 
         columns = self._parse_identifiers(res['select'])
