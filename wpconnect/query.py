@@ -563,4 +563,4 @@ class Query:
             return header
 
     def get_columns(self, query_fn):
-        return self.parse_query(filename=query_fn)['select']
+        return list(set(self.parse_query(filename=query_fn)['select']))
