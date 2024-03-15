@@ -18,7 +18,7 @@ class Connect:
         port=None,
         username=None,
         password=None,
-        trusted_connection=True,
+        trusted_connection=False,
         make_password_safe=True
     ):
         self.trusted_connection = trusted_connection

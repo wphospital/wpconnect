@@ -92,7 +92,7 @@ class Query:
         username=None,
         password=None,
         repo=None,
-        trusted_connection=True,
+        trusted_connection=False,
         make_password_safe=True,
         github_rate_action=settings.GITHUB_RATE_PAUSE
     ):
