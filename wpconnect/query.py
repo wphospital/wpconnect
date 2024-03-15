@@ -435,7 +435,8 @@ class Query:
         cte_list = self._parse_identifiers(res['cte'],cte=True)
         cte = {}
         for d in cte_list:
-            cte.update(d)
+            if isinstance(d, dict):
+                cte.update(d)
         res['cte'] = cte
 
         columns = self._parse_identifiers(res['select'])
@@ -543,20 +544,23 @@ class Query:
         return self._parse_query(stmt)
        
     def get_comments(self, query_fn):
-        c = self.parse_query(filename=query_fn)['comments']
-        
-        sec_starts = [i.span()[0] for i in re.finditer(r'[^\:\n]+(?=\:)', c)]
-        
-        if len(sec_starts) > 0:
-            ln = []
-            for i in range(len(sec_starts)-1):
-                ln.append(c[sec_starts[i]:sec_starts[i+1]])
-            ln.append(c[sec_starts[-1]:].split('*')[0])
-            
-            header = {l.split(':')[0]:l.split(':')[-1].strip(' \n')  for l in ln}
+        c = self.parse_query(filename=query_fn)
+        if 'comments' not in c.keys():
+            return {}
         else:
-            header = {} 
-        return header
+            c = c['comments']
+            sec_starts = [i.span()[0] for i in re.finditer(r'[^\:\n]+(?=\:)', c)]
+            
+            if len(sec_starts) > 0:
+                ln = []
+                for i in range(len(sec_starts)-1):
+                    ln.append(c[sec_starts[i]:sec_starts[i+1]])
+                ln.append(c[sec_starts[-1]:].split('*')[0])
+                
+                header = {l.split(':')[0]:l.split(':')[-1].strip(' \n')  for l in ln}
+            else:
+                header = {} 
+            return header
 
     def get_columns(self, query_fn):
-        return self.parse_query(filename=query_fn)['select']
+        return list(set(self.parse_query(filename=query_fn)['select']))
