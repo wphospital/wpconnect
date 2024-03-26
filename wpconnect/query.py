@@ -427,7 +427,9 @@ class Query:
                 res[mode].append(token)
             elif mode != '' and token.ttype is None:                
                 res[mode].extend(token)
-                mode = ''    
+                mode = ''
+            elif token.ttype == Keyword and str(token).upper()== 'UNION':
+                break    
         return res
 
     def _parse_query(self, stmt):
