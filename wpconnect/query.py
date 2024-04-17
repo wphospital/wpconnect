@@ -15,6 +15,7 @@ import pkgutil
 
 import time
 import datetime as dt
+from dateutil.relativedelta import relativedelta
 import pytz
 
 import base64
@@ -23,6 +24,8 @@ from sqlparse.tokens import *
 import sqlparse
 
 import gc
+
+import json
 
 settings = Settings()
 
@@ -76,6 +79,236 @@ def rate_aware(func):
         return res
 
     return wrapper
+
+# Get today's date
+def _get_date(
+    date : dt.datetime = None,
+    use_tz : bool = True,
+    tz : str = 'UTC',
+    shift : int = 0
+):
+    """Get today's date
+
+    Parameters
+    ----------
+    date : datetime.datetime
+        a datetime (today if none)
+    use_tz : bool
+        whether to apply a timezone conversion
+    tz : str
+        timezone to use. defaults to UTC
+    shift : int
+        a number of days to shift the input date
+
+    Returns
+    -------
+    datetime.date
+        today's date
+    """
+
+    date = dt.datetime.utcnow()\
+        .replace(tzinfo=pytz.UTC) if date is None else date
+
+    if use_tz:
+        date = date.astimezone(pytz.timezone(tz)).date()
+
+    shifted_date = date + dt.timedelta(days=shift)
+
+    return shifted_date
+
+def convert_date_shortcut(
+    string,
+    params_dict,
+    today_anchor_pattern,
+    relative_anchor_pattern,
+    relative_key_pattern
+):
+    """Converts from a date shortcut format (e.g. t-1, d-2we, etc) to an actual
+    datetime
+
+    Parameters
+    ----------
+    string : str
+    params_dict : dict
+    today_anchor_pattern : str
+    relative_anchor_pattern : str
+    relative_key_pattern : str
+
+    Returns
+    -------
+    datetime.date
+        date object representing the converted parameter shortcut
+    """
+
+    relative_str_pattern = f'({today_anchor_pattern}|{relative_anchor_pattern})\d+(([dmy]|([mwy][se]))$)?'
+
+    if re.search(f'{today_anchor_pattern}\d+', string):
+        start_date = _get_date()
+
+    if re.search(f'{relative_key_pattern}[-+]\d+', string):
+        relative_key = re.search(relative_key_pattern, string).group(0)
+
+        if re.search(relative_str_pattern, params_dict[relative_key]):
+            start_date = dt.datetime.strptime(
+                convert_date_shortcut(
+                    params_dict[relative_key],
+                    params_dict,
+                    today_anchor_pattern,
+                    relative_anchor_pattern,
+                    relative_key_pattern
+                ),
+                '%Y-%m-%d'
+            )
+        else:
+            start_date = dt.datetime.strptime(params_dict[relative_key], '%Y-%m-%d')
+
+    interval = re.search(f'({today_anchor_pattern}|{relative_anchor_pattern})\d+', string).group(0)
+    unit = re.search('(([dmy]|([mwy][se]))$)', string)
+    direction = re.search('[-+](?=\d)', string)
+
+    if unit:
+        unit = unit.group(0)
+
+        if unit == 'y':
+            date_adj = relativedelta(years=int(interval))
+        if unit == 'ys':
+            start_date = start_date.replace(month=1, day=1)
+            date_adj = relativedelta(years=int(interval))
+        if unit == 'ye':
+            start_date = start_date.replace(month=12, day=31)
+            date_adj = relativedelta(years=int(interval))
+        if unit == 'm':
+            date_adj = relativedelta(months=int(interval))
+        if unit == 'ms':
+            start_date = start_date.replace(day=1)
+            date_adj = relativedelta(months=int(interval))
+        if unit == 'me':
+            if direction:
+                days = 1 if direction.group(0) == '-' else -1
+            else:
+                raise Exception('Incorrectly formatted relative date string')
+
+            start_date = start_date.replace(day=1) + relativedelta(months=1)
+            date_adj = relativedelta(months=int(interval), days=days)
+        if unit == 'w':
+            date_adj = relativedelta(weeks=int(interval))
+        if unit == 'ws':
+            start_date = start_date - dt.timedelta(days=start_date.weekday() + 1)
+            date_adj = relativedelta(weeks=int(interval))
+        if unit == 'we':
+            start_date = start_date - relativedelta(days=start_date.weekday() + 2 if start_date.weekday() < 6 else 1) + relativedelta(weeks=1)
+            date_adj = relativedelta(weeks=int(interval))
+        if unit == 'd':
+            date_adj = relativedelta(days=int(interval))
+    else:
+        date_adj = relativedelta(days=int(interval))
+
+    if direction:
+        date_adj = date_adj * -1 if direction.group(0) == '-' else date_adj
+    else:
+        raise Exception('Incorrectly formatted relative date string')
+
+    return (start_date + date_adj).strftime('%Y-%m-%d')
+
+def interpret_params(params_dict):
+    """Converts values in a dictionary to proper parameters
+
+    Parameters
+    ----------
+    params_dict : dict
+
+    Returns
+    -------
+    dict
+        dictionary with parameters converted from shortcuts to values
+    """
+
+    date_key_pattern = '(?<=[ _])?date(?=[ _])?'
+
+    date_keys = [k for k in params_dict.keys() if re.search(date_key_pattern, k)]
+
+    today_anchor_pattern = '(?<=t-)'
+    relative_key_pattern = '|'.join([f'({k})' for k in date_keys])
+    relative_anchor_pattern = '|'.join([f'(?<={k}[-+])' for k in date_keys])
+
+    relative_str_pattern = f'({today_anchor_pattern}|{relative_anchor_pattern})\d+(([dmy]|([mwy][se]))$)?'
+
+    for k, v in params_dict.items():
+        if k in date_keys:
+            if re.search(relative_str_pattern, v):
+                params_dict[k] = convert_date_shortcut(
+                    v, params_dict, today_anchor_pattern, relative_anchor_pattern, relative_key_pattern
+                )
+
+    return params_dict
+
+# TODO: test this method thoroughly
+def check_safe_list(value):
+    """Checks if the value appears to be a safe list
+    and coerces it back to a comma-bearing list
+
+    Parameters
+    ---------
+    value : str
+        a string with the parameter value
+
+    Returns
+    -------
+    str
+        a string with semicolons converted to commas if necessary
+    """
+
+    if isinstance(value, list):
+        return '({})'.format(
+            ','.join([f'\'{v}\'' if isinstance(v, str) else f'{v}' for v in value])
+        )
+
+    if re.search('\(\'[^\']+\';', value):
+        return re.sub('\';', '\',', value)
+
+    return value
+
+def parse_query_params(
+    param_str : str
+):
+    """Parses a string to a dictionary of query parameters
+
+    Parameters
+    ----------
+    param_str : str
+        a string containing comma-delimited key-value parameter pairs
+
+    Returns
+    -------
+    dict
+        dictionary with parameters
+    """
+
+    if isinstance(param_str, dict):
+        query_params = dict(
+            zip(
+                param_str.keys(),
+                [check_safe_list(v) for v in param_str.values()]
+            )
+        )
+    else:
+        key_value_pattern = '([^,]+)'
+
+        key_pattern = f'({key_value_pattern}(?==))'
+        val_pattern = f'((?<==){key_value_pattern})'
+
+        group_pattern = f'{key_value_pattern}={key_value_pattern}(?=,)?'
+
+        param_matches = re.findall(group_pattern, param_str)
+
+        keys, values = [], []
+        if len(param_matches) > 0:
+            keys = [p[0] for p in param_matches]
+            values = [p[1] for p in param_matches]
+
+        query_params = dict(zip(keys, [check_safe_list(v) for v in values]))
+
+    return interpret_params(query_params)
 
 class Query:
     g = None
