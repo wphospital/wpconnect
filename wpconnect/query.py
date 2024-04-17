@@ -648,6 +648,8 @@ class Query:
                 mode = ''
             elif token.ttype == CTE:
                 mode = 'cte'
+            elif isinstance(token, sqlparse.sql.Parenthesis):
+                res = self._filter_tokens(token)
             elif token.ttype == DML and str(token).upper() == 'SELECT':
                 mode = 'select'
             elif token.ttype == Keyword and (str(token).upper()== 'FROM' or 'JOIN' in str(token).upper()):
@@ -658,7 +660,9 @@ class Query:
                 res[mode].append(token)
             elif mode != '' and token.ttype is None:                
                 res[mode].extend(token)
-                mode = ''    
+                mode = ''
+            elif token.ttype == Keyword and str(token).upper()== 'UNION':
+                break    
         return res
 
     def _parse_query(self, stmt):
@@ -709,6 +713,7 @@ class Query:
 
             if isinstance(token, sqlparse.sql.IdentifierList):
                 res.append([i.get_name().upper() for i in token.get_identifiers()]) 
+
             elif token.ttype == Name:
                 if len(name) > 0 and name[-1][-1] == '.':
                     name[-1] = name[-1] + str(token).upper()                
@@ -724,7 +729,7 @@ class Query:
                  
             elif cte and isinstance(token, sqlparse.sql.Identifier): 
 
-                dd = [t for t in token if t.ttype is None][0]
+                dd = [t for t in token if t.ttype is None and not isinstance(t, sqlparse.sql.Comment)][0]
                 res.extend(name)
                 name = []
                 res.append({token.get_name().upper(): self._parse_query(dd)})
