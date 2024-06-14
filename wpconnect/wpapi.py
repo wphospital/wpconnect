@@ -140,7 +140,9 @@ class WPAPIRequest:
         self.last_query_fn = query_fn
         self.last_params = kwargs
 
-        default_dict = {'query_fn': query_fn} if query_fn else {}
+        default_dict = {'query_fn': query_fn}\
+            if query_fn and self.endpoint != 'named_query'\
+            else {}
 
         send_params = {
             **default_dict,
@@ -160,7 +162,9 @@ class WPAPIRequest:
         basic = None if auth is None else HTTPBasicAuth(*auth)
 
         res = requests.get(
-            settings.WPAPI + self.endpoint,
+            settings.WPAPI + self.endpoint + (
+                f'/{query_fn}' if self.endpoint == 'named_query' else ''
+            ),
             params=send_params,
             headers=headers,
             auth=basic
