@@ -420,10 +420,12 @@ class Query:
 
                 needs_scanning = [d for d in dirs if d not in scanned_dirs]
 
+        self.repo_duplicates = repo_duplicates.copy()
+
         if len(repo_duplicates) > 0:
             joined_dups = ', '.join(repo_duplicates)
 
-            raise Exception(f'Duplicated queries found: {joined_dups}')
+            warnings.warn(f'Duplicated queries found: {joined_dups}')
 
         self.set_cfs(cfs)
 
@@ -599,6 +601,9 @@ class Query:
         chunksize: int = None,
     ):
         query = self.import_sql(query_file)
+
+        if query in self.repo_duplicates:
+            raise Exception('Duplicated queries with this name were found')
 
         return self.execute_query(query, params=params, return_type=return_type, chunksize=chunksize)
 
