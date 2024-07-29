@@ -787,7 +787,7 @@ class Query:
             return {}
         else:
             c = c['comments']
-            sec_starts = [i.span()[0] for i in re.finditer(r'[^\:\n]+(?=\:)', c)]
+            sec_starts = [i.span()[0] for i in re.finditer(r'[^\n]+(?=\:)', c)]
             
             if len(sec_starts) > 0:
                 ln = []
@@ -795,10 +795,11 @@ class Query:
                     ln.append(c[sec_starts[i]:sec_starts[i+1]])
                 ln.append(c[sec_starts[-1]:].split('*')[0])
                 
-                header = {l.split(':')[0]:l.split(':')[-1].strip(' \n')  for l in ln}
+                header = {l.split(':', 1)[0]:l.split(':', 1)[-1].strip(' \n')  for l in ln}
             else:
                 header = {} 
             return header
+
 
     def get_columns(self, query_fn):
         return list(set(self.parse_query(filename=query_fn)['select']))
