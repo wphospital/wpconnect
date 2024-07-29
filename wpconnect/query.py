@@ -600,10 +600,10 @@ class Query:
         return_type: str = settings.DEFAULT_RETURN,
         chunksize: int = None,
     ):
-        query = self.import_sql(query_file)
-
-        if query in self.repo_duplicates:
+        if query_file in self.repo_duplicates:
             raise Exception('Duplicated queries with this name were found')
+
+        query = self.import_sql(query_file)
 
         return self.execute_query(query, params=params, return_type=return_type, chunksize=chunksize)
 
