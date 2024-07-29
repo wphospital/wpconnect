@@ -423,7 +423,7 @@ class Query:
         if len(repo_duplicates) > 0:
             joined_dups = ', '.join(repo_duplicates)
 
-            warnings.warn(f'Duplicated queries found: {joined_dups}')
+            raise Exception(f'Duplicated queries found: {joined_dups}')
 
         self.set_cfs(cfs)
 
