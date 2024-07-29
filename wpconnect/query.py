@@ -454,6 +454,9 @@ class Query:
         self,
         filename
     ):
+        if filename in self.repo_duplicates:
+            raise Exception('Duplicated queries with this name were found')
+
         res = self.r.get_git_blob(self.cfs[filename])
 
         raw_data = res.raw_data['content']
@@ -600,9 +603,6 @@ class Query:
         return_type: str = settings.DEFAULT_RETURN,
         chunksize: int = None,
     ):
-        if query_file in self.repo_duplicates:
-            raise Exception('Duplicated queries with this name were found')
-
         query = self.import_sql(query_file)
 
         return self.execute_query(query, params=params, return_type=return_type, chunksize=chunksize)
