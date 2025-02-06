@@ -106,12 +106,28 @@ class WPAPIResponse:
         self._error = error
 
 class WPAPIRequest:
-    def __init__(self, password, prefix='flask_cache_', endpoint='repo_query'):
-        self.cache = self.init_redis(password)
+    def __init__(
+        self,
+        password=None,
+        prefix='flask_cache_',
+        endpoint='repo_query',
+        auth=None
+    ):
+        if password is not None:
+            warnings.warn(
+                'Passing a password to WPAPIRequest is depracated. '
+                'Please switch to pass basic auth tuple to WPAPIRequest',
+                DeprecationWarning,
+                stacklevel=2
+            )
+
+        self.cache = self.init_redis(settings.WPAPI_REDIS_PASSWORD)
 
         self.prefix = prefix
 
         self.endpoint = endpoint
+
+        self.auth = auth
 
     def init_redis(self, password):
         return RedisCache(
@@ -139,6 +155,16 @@ class WPAPIRequest:
     ):
         self.last_query_fn = query_fn
         self.last_params = kwargs
+
+        if auth is not None:
+            warnings.warn(
+                'Passing basic auth to the get method is depracated. '
+                'Please switch to pass basic auth tuple to WPAPIRequest',
+                DeprecationWarning,
+                stacklevel=2
+            )
+        else:
+            auth = self.auth
 
         default_dict = {'query_fn': query_fn}\
             if query_fn and self.endpoint != 'named_query'\

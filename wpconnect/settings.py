@@ -1,3 +1,5 @@
+from sprucepy import secrets
+
 class Settings:
     # WPH database configs
     WPH_SERVER = '10.255.33.34'
@@ -25,6 +27,10 @@ class Settings:
     WPAPI = 'http://odcwphvlp03:1597/api/'
     WPAPI_REDIS_HOST = 'odcwphvlp03'
     WPAPI_REDIS_PORT = 6380
+    WPAPI_REDIS_PASSWORD = secrets.get_secret_by_key(
+        'wpconnect_redis_password',
+        api_url='http://ODCWPHVLD01:1592/api/v1/'
+    )
 
     GITHUB_RATE_WARNING_THRESHOLD = 0.1
     GITHUB_RATE_PAUSE = 1

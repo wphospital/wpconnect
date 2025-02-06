@@ -37,7 +37,8 @@ setup(
         'scipy',
         'urllib3<2',
         'weaviate-client',
-        'sqlparse'
+        'sqlparse',
+        'sprucepy @ git+https://github.com/wphospital/sprucepy'
     ],
     package_data={'wpconnect': ['oracle_dlls/*.dll', 'queries/*.sql', 'rpm-queries/*.sql', 'rpm-cfg.yml']},
     include_package_data=True,
