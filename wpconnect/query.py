@@ -486,21 +486,6 @@ class Query:
 
         return query
 
-    @staticmethod
-    def _replace_dates(
-        orig_df : pd.DataFrame,
-        dtypes : pd.DataFrame
-    ):
-        df = orig_df.copy()
-
-        for c in dtypes:
-            if any([is_datetime(r) for r in dtypes[c]]):
-                df[c] = pd.to_datetime(df[c])
-
-        del orig_df
-
-        return df
-
     # TODO: PARAMS WILL NOT WORK WITH SQLALCHEMY/ORACLE
     def execute_query(
         self,
@@ -525,39 +510,33 @@ class Query:
                 return
             elif return_type == 'DataFrame':
                 try:
-                    db_res = pd.read_sql(text(query), self.conn, params=params, chunksize=chunksize)
+                    res = pd.read_sql(
+                        text(query),
+                        self.conn,
+                        params=params,
+                        chunksize=chunksize
+                    )
 
                     if chunksize:
                         dtypes = []
                         frames = []
-                        for chunk in db_res:
+                        for chunk in res:
                             dtypes.append(chunk.dtypes)
                             frames.append(chunk)
+
+                        res = pd.concat(frames)
 
                         try:
                             dtypes = pd.DataFrame(dtypes)
 
-                            comb_fr = pd.concat(frames)
-
-                            res = self._replace_dates(
-                                comb_fr,
-                                dtypes
-                            )
-
-                            del comb_fr
-                            del dtypes
+                            for c in dtypes:
+                                if any([is_datetime(r) for r in dtypes[c]]):
+                                    res[c] = pd.to_datetime(res[c])
                         except Exception as err:
-                            res = pd.concat(frames)
-
                             warnings.warn('Could not fix dates (likely due to duplicated columns in the original query)')
 
+                        del dtypes
                         del frames
-                    else:
-                        res = db_res
-
-                    del db_res
-
-                    db_res = pd.DataFrame()
 
                 except pd.io.sql.DatabaseError as err:
                     warnings.warn(str(err), UserWarning)
