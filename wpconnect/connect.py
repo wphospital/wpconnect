@@ -30,7 +30,11 @@ class Connect:
 
             if port:
                 self.port = port
-            elif self.server in [settings.EDW_SERVER, settings.EDW_SERVER_PROD]:
+            elif self.server in [
+                settings.EDW_SERVER_DEV,
+                settings.EDW_SERVER_QA,
+                settings.EDW_SERVER_PROD
+            ]:
                 self.port = settings.EDW_PORT
             elif self.server == settings.WPH_SERVER:
                 self.port = settings.WPH_PORT
@@ -48,10 +52,10 @@ class Connect:
             self.port = settings.EDW_PORT
 
             if environ == 'dev':
-                self.server = settings.EDW_SERVER
+                self.server = settings.EDW_SERVER_DEV
                 self.database = settings.EDW_DATABASE_DEV
             elif environ == 'qa':
-                self.server = settings.EDW_SERVER
+                self.server = settings.EDW_SERVER_QA
                 self.database = settings.EDW_DATABASE_QA
             else:
                 self.server = settings.EDW_SERVER_PROD
@@ -82,7 +86,11 @@ class Connect:
         else:
             safe_password = None
 
-        if self.server in [settings.EDW_SERVER, settings.EDW_SERVER_PROD]:
+        if self.server in [
+            settings.EDW_SERVER_DEV,
+            settings.EDW_SERVER_QA,
+            settings.EDW_SERVER_PROD
+        ]:
             self.connection_string = (
                 f'oracle+cx_oracle:'
                 f'//{self.username}:{safe_password}'
@@ -108,7 +116,11 @@ class Connect:
         self.set_connection_string()
 
         try:
-            if self.server in [settings.EDW_SERVER, settings.EDW_SERVER_PROD]:
+            if self.server in [
+                settings.EDW_SERVER_DEV,
+                settings.EDW_SERVER_QA,
+                settings.EDW_SERVER_PROD
+            ]:
 
                 dll_dir = os.path.join(os.path.dirname(__file__), 'oracle_dlls')
 

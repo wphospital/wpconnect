@@ -13,7 +13,8 @@ class Settings:
     TT_PORT = 1433
 
     # MIT EDW configs
-    EDW_SERVER = 'od01-scan.montefiore.org'
+    EDW_SERVER_DEV = 'od02-scan.montefiore.org'
+    EDW_SERVER_QA = 'od01-scan.montefiore.org'
     EDW_SERVER_PROD = 'yk02-scan.montefiore.org'
     EDW_DATABASE_DEV = 'EDWDEV.montefiore.org'
     EDW_DATABASE_QA = 'EDWADG.montefiore.org'
