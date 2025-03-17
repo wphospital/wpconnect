@@ -1,6 +1,8 @@
 from cachelib.redis import RedisCache
 import requests
 from requests.auth import HTTPBasicAuth
+from requests.adapters import HTTPAdapter
+from urllib3 import Retry
 import pickle
 import zlib
 import warnings
@@ -28,6 +30,64 @@ def get_precache_list():
         return pd.DataFrame(res.json())
     else:
         return res.text
+
+def retry_request(
+    url,
+    params,
+    headers,
+    auth : tuple = None,
+    retries : int = 3,
+    backoff_factor : float = 0.5,
+    status_forcelist : tuple = (500, 502, 503, 504)
+):
+    """
+    Sends an HTTP GET request to a URL with retry logic.
+
+    Args:
+        url (str): The URL to request.
+        retries (int, optional): Maximum number of retry attempts. Defaults to 3.
+        backoff_factor (float, optional): Backoff factor for delay between retries. Defaults to 0.5.
+        status_forcelist (tuple, optional): HTTP status codes to retry on. Defaults to (500, 502, 503, 504).
+
+    Returns:
+        requests.Response: The response object if successful or after max retries.
+    """
+    retry_strategy = Retry(
+        total=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=status_forcelist,
+        allowed_methods=["GET"]
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    http = requests.Session()
+    http.mount("https://", adapter)
+    http.mount("http://", adapter)
+
+    response = http.get(url, params=params, headers=headers, auth=auth)
+
+    try:
+        if response.status_code not in (401, 404):
+            response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
+        
+        return response
+    except requests.exceptions.RequestException as e:
+        base_err_str = f'WPConnect Error: WPConnect did not receive a successful response after {retries} attempts'
+
+        try:
+            err_str = base_err_str + '. ' + response.text
+        except NameError as err:
+            err_str = base_err_str
+
+        try:
+            return_val = response
+        except NameError as err:
+            return_val = requests.Response()
+
+            return_val.status_code = 444
+
+            return_val._content = err_str.encode()
+
+        return return_val
 
 
 class WPAPIResponse:
@@ -187,8 +247,8 @@ class WPAPIRequest:
 
         basic = None if auth is None else HTTPBasicAuth(*auth)
 
-        res = requests.get(
-            settings.WPAPI + self.endpoint + (
+        res = retry_request(
+            url=settings.WPAPI + self.endpoint + (
                 f'/{query_fn}' if self.endpoint == 'named_query' else ''
             ),
             params=send_params,
@@ -196,8 +256,10 @@ class WPAPIRequest:
             auth=basic
         )
 
+        res_headers = res.headers if res.headers is not None else {}
+
         resp = WPAPIResponse(
-            cached=res.headers.get('data-cached') == 'True',
+            cached=res_headers.get('data-cached') == 'True',
             status_code=res.status_code,
             request_res=res
         )
