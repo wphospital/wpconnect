@@ -9,6 +9,8 @@ from urllib.parse import quote_plus
 settings = Settings()
 
 class Connect:
+    connection_error = None
+
     def __init__(
         self,
         connection_type=None,
@@ -141,11 +143,11 @@ class Connect:
                 self.engine = sa.create_engine(self.connection_string)
                 connection = self.engine.connect()
         except pyodbc.Error as err:
-            print(f'Could not connect!: {err}')
+            self.connection_error = err
 
             connection = None
         except Exception as err:
-            print(f'Could not connect!: {err}')
+            self.connection_error = err
 
             connection = None
 
