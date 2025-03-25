@@ -14,10 +14,10 @@ class Settings:
 
     # MIT EDW configs
     EDW_SERVER_DEV = 'od02-scan.montefiore.org'
-    EDW_SERVER_QA = 'od01-scan.montefiore.org'
+    EDW_SERVER_QA = 'od02-scan.montefiore.org'
     EDW_SERVER_PROD = 'yk02-scan.montefiore.org'
     EDW_DATABASE_DEV = 'EDWDEV.montefiore.org'
-    EDW_DATABASE_QA = 'EDWADG.montefiore.org'
+    EDW_DATABASE_QA = 'EDWDG.montefiore.org'
     EDW_DATABASE_PROD = 'EDWPRD.montefiore.org'
     EDW_PORT = 3923
 
